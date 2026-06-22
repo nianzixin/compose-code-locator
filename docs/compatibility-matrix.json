@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "baseline": {
+    "gradle": "8.7",
+    "androidGradlePlugin": "8.6.1",
+    "kotlin": "2.0.21",
+    "composeCompilerPlugin": "2.0.21",
+    "composeUi": "1.7.0",
+    "material3": "1.3.0",
+    "androidStudio": "2025.x"
+  },
+  "supported": {
+    "gradleMajor": [8],
+    "androidGradlePluginMajor": [8],
+    "kotlinMinor": ["2.0"],
+    "composeUiMinor": ["1.7"],
+    "material3Minor": ["1.3"]
+  },
+  "requiresValidation": {
+    "kotlinMinor": ["2.1", "2.2"],
+    "composeUiMinor": ["1.8", "1.9"],
+    "androidGradlePluginMinor": ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.7"]
+  },
+  "ciMatrix": [
+    {
+      "gradle": "8.7",
+      "androidGradlePlugin": "8.6.1",
+      "kotlin": "2.0.21",
+      "composeCompilerPlugin": "2.0.21",
+      "composeUi": "1.7.0",
+      "material3": "1.3.0",
+      "experimental": false
+    },
+    {
+      "gradle": "8.5",
+      "androidGradlePlugin": "8.5.2",
+      "kotlin": "2.0.21",
+      "composeCompilerPlugin": "2.0.21",
+      "composeUi": "1.7.0",
+      "material3": "1.3.0",
+      "experimental": true
+    },
+    {
+      "gradle": "8.7",
+      "androidGradlePlugin": "8.7.3",
+      "kotlin": "2.0.21",
+      "composeCompilerPlugin": "2.0.21",
+      "composeUi": "1.7.0",
+      "material3": "1.3.0",
+      "experimental": true
+    }
+  ],
+  "requiredGates": [
+    "verifyCodeLocator",
+    "verifyCodeLocatorDevice",
+    "verifyComposeLocatorCiTemplate",
+    "verifyComposeLocatorReleaseArchive",
+    "verifyComposeLocatorReleaseConsumer",
+    "verifyComposeLocatorReleasePackage",
+    "verifyComposeLocatorPublicCoordinates",
+    "verifyComposeLocatorRolloutReadiness",
+    "verifyComposeLocatorWindowRootPolicy"
+  ],
+  "publishing": {
+    "mavenRepository": "build/composeLocator/release/maven",
+    "releaseArchive": "build/composeLocator/compose-code-locator-0.1.0-release.zip",
+    "studioPluginZip": "build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip",
+    "coordinates": [
+      "io.github.nianzixin:locator-runtime:0.1.0",
+      "io.github.nianzixin:locator-runtime-android:0.1.0",
+      "io.github.nianzixin:locator-compiler-plugin:0.1.0",
+      "io.github.nianzixin:locator-gradle-plugin:0.1.0",
+      "io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.0",
+      "io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.0"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+<idea-plugin>
+    <id>dev.codelocator.studio</id>
+    <name>Compose Code Locator</name>
+    <vendor email="devnull@example.com">Code Locator</vendor>
+
+    <description><![CDATA[
+        Compose runtime locator prototype for jumping from screenshot coordinates to source.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+            id="Compose Code Locator"
+            factoryClass="dev.codelocator.studio.intellij.ComposeLocatorToolWindowFactory"
+            anchor="right" />
+    </extensions>
+
+    <actions>
+        <action
+            id="dev.codelocator.studio.CaptureAndLocate"
+            class="dev.codelocator.studio.intellij.CaptureAndLocateAnAction"
+            text="Compose Code Locator"
+            description="Open the Compose Code Locator tool window" />
+    </actions>
+</idea-plugin>
