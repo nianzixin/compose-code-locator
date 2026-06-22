@@ -1,3 +1,123 @@
+# Compose Code Locator
+
+Compose Code Locator 是一个面向 Jetpack Compose 的源码定位工具原型，目标是做到类似 CodeLocator 的使用体验：在 Android Studio 插件里点击截图上的 UI 元素，直接跳转到对应 Compose 调用点。
+
+它的核心设计是“不侵入业务 UI 代码”：业务侧不需要手写 `.testTag(...)`、`.locatorNode(...)`、根部 collector、Application bridge 或 Activity bridge。源码身份由 Gradle 构建期、Kotlin IR compiler plugin 和 AGP ASM transform 注入；App debug runtime 只暴露紧凑的 `sourceId` 和节点边界，Android Studio 再通过本地索引把 `sourceId` 解析回文件行号。
+
+## 能解决什么
+
+- 点击 Compose 页面截图中的元素，跳转到对应 Kotlin 源码位置。
+- 支持动态文案、重复固定文案，例如一个页面里多个“确认”按钮。
+- 支持普通 Compose 节点、LayoutNode fallback、Dialog、Popup、DropdownMenu、ModalBottomSheet、LazyGrid、NavHost、多 Activity、多 Compose root。
+- 支持无 `Modifier` 参数的包装 composable，通过 ASM source boundary 作为 fallback。
+- 支持大项目：源码映射只在本地 build/Studio index 中，不塞进 APK asset，不在运行时加载大 JSON。
+- release 包保持干净：release APK 不包含 locator runtime、debug server、source catalog 或 compose-locator metadata asset。
+
+## 当前组成
+
+- `locator-gradle-plugin`：Gradle 插件，负责源码扫描、compiler plugin 接入、ASM 注入、Studio index 生成、团队一键接入 convention plugin。
+- `locator-compiler-plugin`：Kotlin IR 插件，给 Compose 调用点注入私有 source identity。
+- `locator-runtime-android`：App debug runtime，自动初始化、采集 Compose window/root/node、提供本地调试协议。
+- `locator-runtime`：通用 runtime model、hit-test、JSON protocol。
+- `studio-plugin`：Android Studio 插件，负责设备截图、hit-test、候选节点展示、源码跳转。
+- `demo-app` / `demo-feature`：无业务埋点的 Compose demo 和 library fixture。
+
+## 快速接入
+
+当前公开坐标使用 GitHub namespace：
+
+```kotlin
+plugins {
+    id("io.github.nianzixin.team-compose-locator") version "0.1.0"
+}
+```
+
+`team-compose-locator` 会自动处理依赖：
+
+```kotlin
+// Android application 模块自动添加：
+debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.0")
+
+// Android library 模块自动添加：
+compileOnly("io.github.nianzixin:locator-runtime-android:0.1.0")
+```
+
+如果你暂时使用 GitHub Release 里的静态 Maven 包，需要先下载并解压：
+
+[compose-code-locator-0.1.0-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+
+然后把压缩包里的 `maven/` 放到你的内网 Maven、官网 CDN 或本地目录，并在业务工程 `settings.gradle.kts` 中配置：
+
+```kotlin
+pluginManagement {
+    repositories {
+        maven("https://your-domain.example/compose-locator/maven")
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven("https://your-domain.example/compose-locator/maven")
+        google()
+        mavenCentral()
+    }
+}
+```
+
+如果只是本机验证，也可以指向解压后的本地目录：
+
+```kotlin
+maven("/absolute/path/to/compose-code-locator-0.1.0/maven")
+```
+
+## 构建和验证
+
+完整非设备门禁：
+
+```bash
+./gradlew verifyCodeLocator
+```
+
+连接设备后的端到端验证：
+
+```bash
+CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
+```
+
+构建 Android Studio 插件 ZIP：
+
+```bash
+./gradlew :studio-plugin:buildStudioPluginZip
+```
+
+生成可分发 release 包：
+
+```bash
+./gradlew verifyComposeLocatorReleaseArchive
+```
+
+产物位置：
+
+```text
+build/composeLocator/compose-code-locator-0.1.0-release.zip
+```
+
+## 发布状态
+
+- GitHub 仓库：[nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
+- GitHub Release：[v0.1.0](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+- 当前 release zip 已包含静态 Maven 仓库、Android Studio 插件 ZIP、release manifest、checksum、rollout 文档和 public publishing 文档。
+- Maven Central、Gradle Plugin Portal、JetBrains Marketplace 尚未正式发布；相关准备说明见 [docs/public-publishing.md](docs/public-publishing.md)。
+
+## 重要说明
+
+这是一个工程化 PoC，已经包含 demo/device/release/performance/consumer smoke 等门禁，但正式接入大业务前仍建议先在团队 design-system 和真实业务页面中做试点。尤其要验证自定义 wrapper、slot API、弹窗、导航、多模块依赖、编译耗时和 Studio index 体积。
+
+---
+
 # Compose Code Locator PoC
 
 This repository is a working PoC for a CodeLocator-style Compose source locator. It is designed around a large-project architecture:
