@@ -2905,7 +2905,13 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
             """
             pluginManagement {
                 repositories {
-                    maven("${releaseDir.resolve("maven").invariantSeparatorsPath}")
+                    maven("${releaseDir.resolve("maven").invariantSeparatorsPath}") {
+                        content {
+                            includeGroup("io.github.nianzixin")
+                            includeGroup("io.github.nianzixin.compose-locator")
+                            includeGroup("io.github.nianzixin.team-compose-locator")
+                        }
+                    }
                     google()
                     mavenCentral()
                     gradlePluginPortal()
@@ -2915,7 +2921,11 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
             dependencyResolutionManagement {
                 repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
                 repositories {
-                    maven("${releaseDir.resolve("maven").invariantSeparatorsPath}")
+                    maven("${releaseDir.resolve("maven").invariantSeparatorsPath}") {
+                        content {
+                            includeGroup("io.github.nianzixin")
+                        }
+                    }
                     google()
                     mavenCentral()
                 }
@@ -2983,7 +2993,6 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
             commandLine = listOf(
                 project.rootDir.resolve("gradlew").absolutePath,
                 "--no-daemon",
-                "--offline",
                 "verifyConsumerPlugins",
             )
             environment("JAVA_HOME", javaHome)
