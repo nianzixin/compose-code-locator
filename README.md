@@ -1,51 +1,53 @@
 # Compose Code Locator
 
-Compose Code Locator 是一个面向 Jetpack Compose 的源码定位工具，目标是做到类似 CodeLocator 的使用体验：在 Android Studio 插件里点击设备截图上的 UI 元素，直接跳转到对应 Compose 调用点。
+[Simplified Chinese](README-CN.md)
 
-它的核心设计是“不侵入业务 UI 代码”：业务侧不需要手写 `.testTag(...)`、`.locatorNode(...)`、根部 collector、Application bridge 或 Activity bridge。源码身份由 Gradle 构建期、Kotlin IR compiler plugin 和 AGP ASM transform 注入；App debug runtime 只暴露紧凑的 `sourceId` 和节点边界，Android Studio 再通过本地索引把 `sourceId` 解析回文件行号。
+Compose Code Locator is a source navigation tool for Jetpack Compose. Its goal is to provide a CodeLocator-like workflow: click a UI element in an Android Studio screenshot panel and jump directly to the Compose call site that produced it.
 
-> 当前版本是工程化 PoC，已覆盖 demo/device/release/performance/consumer smoke 等门禁。正式接入大业务前，建议先在团队 design-system 和真实业务页面中做试点。
+The core design is non-invasive for business UI code. App code does not need `.testTag(...)`, `.locatorNode(...)`, root collectors, an Application bridge, or Activity bridge. Source identity is injected at build time by the Gradle plugin, Kotlin IR compiler plugin, and AGP ASM transform. The debug runtime only exposes compact `sourceId` values and node bounds. Android Studio resolves those `sourceId` values back to `file:line` through a local source index.
 
-## 能解决什么
+> This is an engineered PoC. It already has demo, device, release, performance, and consumer smoke gates, but production rollout should still start with design-system and real-page trials.
 
-- 点击 Compose 页面截图中的元素，跳转到对应 Kotlin 源码位置。
-- 不依赖文案匹配，支持动态文案、重复固定文案，例如一个页面里多个“确认”按钮。
-- 支持普通 Compose 节点、LayoutNode fallback、Dialog、Popup、DropdownMenu、ModalBottomSheet、LazyGrid、NavHost、多 Activity、多 Compose root。
-- 支持无 `Modifier` 参数的 wrapper composable，通过 ASM source boundary 作为 fallback。
-- 支持大项目：源码映射只保存在本地 Gradle build 输出和 Studio index 中，不塞进 APK asset，不在运行时加载大 JSON。
-- release 包保持干净：release APK 不包含 locator runtime、debug server、source catalog 或 compose-locator metadata asset。
+## What It Solves
 
-## 架构原理
+- Click a Compose UI element in a device screenshot and navigate to the corresponding Kotlin source location.
+- Avoid text-based matching, so dynamic text and duplicate fixed text such as multiple `Confirm` buttons can still be resolved.
+- Cover regular Compose nodes, LayoutNode fallback, Dialog, Popup, DropdownMenu, ModalBottomSheet, LazyGrid, NavHost, multiple activities, and multiple Compose roots.
+- Support wrapper composables without a `Modifier` parameter through ASM source-boundary fallback.
+- Scale to large projects by keeping source mappings in local Gradle build outputs and Android Studio indexes, not in APK assets or runtime JSON catalogs.
+- Keep release builds clean of locator runtime code, debug server permissions, source catalogs, and compose-locator metadata assets.
 
-1. Gradle 插件扫描每个模块的 Compose 源码，生成模块本地构建产物。
-2. Kotlin IR compiler plugin 给带 `Modifier` 参数的 Compose 调用点注入私有 source identity。
-3. 对没有 `Modifier` 参数的 composable 调用，AGP ASM transform 在 debug 构建中注入 source boundary fallback。
-4. Android debug runtime 通过 `LocatorInitProvider` 自动启动，跟踪 Activity、Window root 和 Compose root。
-5. Studio 插件抓取设备截图，并把点击坐标发送给 App debug runtime 做 hit-test。
-6. runtime 返回候选节点、bounds、诊断信息和 `sourceId`，但不返回完整源码路径。
-7. Studio 插件用本地 sharded Studio index 把 `sourceId` 解析成 `file:line`，然后跳转源码。
+## Architecture
 
-核心原则：
+1. The Gradle plugin scans each module's Compose source and generates module-local build intermediates.
+2. The Kotlin IR compiler plugin injects private source identity for Compose call sites that accept `Modifier`.
+3. For composables without a `Modifier` parameter, the AGP ASM transform injects debug-only source boundaries as fallback.
+4. The Android debug runtime starts automatically through `LocatorInitProvider` and tracks activities, window roots, and Compose roots.
+5. The Android Studio plugin captures a screenshot and sends click coordinates to the app debug runtime for hit-testing.
+6. The runtime returns candidate nodes with bounds, diagnostics, and optional `sourceId`, but not full source paths.
+7. Android Studio resolves `sourceId` through the local sharded Studio index and opens the matching source file and line.
 
-- 业务代码零埋点。
-- APK 里不放大体积源码映射。
-- 运行时只做按需采集和 hit-test。
-- 大索引留在开发机本地，由 Android Studio 插件按需加载。
-- release variant 不引入 debug locator 能力。
+Core principles:
 
-## 模块组成
+- No business-code markers.
+- No large source map assets in APKs.
+- Runtime collection and hit-testing are performed on demand.
+- Large indexes stay on the developer machine and are loaded lazily by the Studio plugin.
+- Release variants do not include debug locator capability.
 
-- `locator-gradle-plugin`：Gradle 插件，负责源码扫描、compiler plugin 接入、ASM 注入、Studio index 生成、团队一键接入 convention plugin。
-- `locator-compiler-plugin`：Kotlin IR 插件，给 Compose 调用点注入私有 source identity。
-- `locator-runtime-android`：App debug runtime，自动初始化、采集 Compose window/root/node、提供本地调试协议。
-- `locator-runtime`：通用 runtime model、hit-test、JSON protocol。
-- `studio-plugin`：Android Studio 插件，负责设备截图、hit-test、候选节点展示、源码跳转。
-- `demo-app`：无业务埋点的 Compose demo app。
-- `demo-feature`：Android Compose library fixture，用于验证多模块 metadata/index 聚合。
+## Modules
 
-## 快速接入
+- `locator-gradle-plugin`: Gradle plugin for source scanning, compiler plugin wiring, ASM injection, Studio index generation, and the team convention plugin.
+- `locator-compiler-plugin`: Kotlin IR compiler plugin that injects private source identity into Compose call sites.
+- `locator-runtime-android`: Android debug runtime with automatic initialization, Compose window/root/node collection, and local debug protocol.
+- `locator-runtime`: Shared runtime models, hit-testing, and JSON protocol.
+- `studio-plugin`: Android Studio plugin for device screenshot capture, hit-testing, candidate display, and source navigation.
+- `demo-app`: Compose demo app with no locator-specific business UI markers.
+- `demo-feature`: Android Compose library fixture for multi-module metadata and index aggregation.
 
-当前公开坐标使用 GitHub namespace：
+## Quick Start
+
+Public coordinates use the GitHub namespace:
 
 ```kotlin
 plugins {
@@ -53,17 +55,17 @@ plugins {
 }
 ```
 
-`team-compose-locator` 会自动处理依赖：
+`team-compose-locator` wires dependencies automatically:
 
 ```kotlin
-// Android application 模块自动添加：
+// Added automatically to Android application modules:
 debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.0")
 
-// Android library 模块自动添加：
+// Added automatically to Android library modules:
 compileOnly("io.github.nianzixin:locator-runtime-android:0.1.0")
 ```
 
-如果需要更细粒度控制，也可以只接入底层插件：
+For lower-level manual control, apply the core plugin directly:
 
 ```kotlin
 plugins {
@@ -71,7 +73,7 @@ plugins {
 }
 ```
 
-可选配置：
+Optional configuration:
 
 ```kotlin
 composeLocator {
@@ -80,15 +82,15 @@ composeLocator {
 }
 ```
 
-正常 debug 接入不需要改 `Application` 或 `Activity` 代码，runtime 会通过 provider 自动初始化。
+Normal debug integration does not require Application or Activity code changes. The runtime starts automatically through a provider.
 
-## 使用 GitHub Release 静态 Maven
+## Using The GitHub Release Maven Package
 
-当前版本还没有发布到 Maven Central / Gradle Plugin Portal。如果你使用 GitHub Release 里的静态 Maven 包，需要先下载并解压：
+Version `0.1.0` is not yet published to Maven Central or the Gradle Plugin Portal. To use the static Maven package from GitHub Release, download and unzip:
 
 [compose-code-locator-0.1.0-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
 
-然后把压缩包里的 `maven/` 放到内网 Maven、官网 CDN 或本地目录，并在业务工程 `settings.gradle.kts` 中配置：
+Mirror the `maven/` directory to an internal Maven repository, public CDN, or local directory, then configure `settings.gradle.kts`:
 
 ```kotlin
 pluginManagement {
@@ -109,85 +111,85 @@ dependencyResolutionManagement {
 }
 ```
 
-本机验证也可以直接指向解压后的本地目录：
+For local verification, point Gradle at the unzipped local Maven directory:
 
 ```kotlin
 maven("/absolute/path/to/compose-code-locator-0.1.0/maven")
 ```
 
-## Android Studio 插件
+## Android Studio Plugin
 
-构建插件 ZIP：
+Build the plugin ZIP:
 
 ```bash
 ./gradlew :studio-plugin:buildStudioPluginZip
 ```
 
-产物位置：
+Output:
 
 ```text
 studio-plugin/build/distributions/compose-code-locator-0.1.0.zip
 ```
 
-安装方式：
+Install it from Android Studio:
 
-1. Android Studio 打开 `Settings | Plugins`。
-2. 选择 `Install Plugin from Disk...`。
-3. 选择上面的 `compose-code-locator-0.1.0.zip`。
-4. 重启 Android Studio。
-5. 打开接入了插件的 Android 工程，运行 debug app，使用工具窗口抓取截图并点击元素定位源码。
+1. Open `Settings | Plugins`.
+2. Choose `Install Plugin from Disk...`.
+3. Select `compose-code-locator-0.1.0.zip`.
+4. Restart Android Studio.
+5. Open an Android project that has integrated the Gradle plugin, run the debug app, capture a screenshot in the tool window, and click a UI element to navigate to source.
 
-## 构建和验证
+## Build And Verification
 
-完整非设备门禁：
+Run the full non-device verification suite:
 
 ```bash
 ./gradlew verifyCodeLocator
 ```
 
-连接设备后的端到端验证：
+Run the adb-backed end-to-end suite:
 
 ```bash
 CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 ```
 
-构建 demo app：
+Build the demo app:
 
 ```bash
 ./gradlew :demo-app:assembleDebug
 ```
 
-生成可分发 release 包：
+Build the distributable release package:
 
 ```bash
 ./gradlew verifyComposeLocatorReleaseArchive
 ```
 
-release zip 产物：
+Release archive:
 
 ```text
 build/composeLocator/compose-code-locator-0.1.0-release.zip
 ```
 
-验证 compiler source 对齐：
+Verify compiler source alignment:
 
 ```bash
 ./gradlew verifyComposeCompilerSourceAlignment
 ```
 
-验证构建效率和 release 边界：
+Verify build efficiency and release boundaries:
 
 ```bash
 ./gradlew verifyComposeLocatorBuildEfficiency verifyComposeLocatorReleaseBoundary
 ```
 
-验证性能基线：
+Verify synthetic performance baselines:
 
 ```bash
 ./gradlew verifyComposeLocatorPerformance
 ```
 
-生成团队 rollout 报告：
+Generate rollout reports:
 
 ```bash
 ./gradlew generateComposeLocatorRolloutReport
@@ -195,16 +197,16 @@ build/composeLocator/compose-code-locator-0.1.0-release.zip
 ./gradlew verifyComposeLocatorRolloutReadiness -Pcodelocator.rollout.modules=:app,:feature
 ```
 
-报告位置：
+Report outputs:
 
 ```text
 build/reports/composeLocator/rollout/rollout-report.md
 build/reports/composeLocator/rollout/rollout-report.json
 ```
 
-## 大项目设计
+## Large-Project Design
 
-大项目场景下，不能把所有源码映射都塞进一个 APK asset 或运行时 JSON。当前架构采用 source identity + 本地 sharded Studio index：
+Large projects should not put all source mappings into one APK asset or runtime JSON file. This project uses source identity plus a local sharded Studio index:
 
 ```text
 build/intermediates/composeLocator/studio-index/v1/
@@ -213,48 +215,48 @@ build/intermediates/composeLocator/studio-index/v1/
   shards/<hex>.jsonl
 ```
 
-处理方式：
+Design details:
 
-- app module 的 `source-map.json` 只保留在模块本地 build 目录。
-- project module 和外部 AAR/JAR 的 locator metadata 只合并进 Studio index。
-- APK 运行时只持有紧凑 `sourceId`，不加载完整 source catalog。
-- Studio 插件启动时只加载 `source-id-index.tsv`，具体 shard 点击时懒加载，并使用 LRU 缓存。
-- metadata 只记录 source identity，例如 `Composable`、`ComposableCallSite`、`ModifierCallSite`，不记录文本/tag 查找表。
+- The app module's `source-map.json` remains module-local under `build/`.
+- Locator metadata from project modules and external AAR/JAR artifacts is merged only into the Studio index.
+- The runtime APK only carries compact `sourceId` values and never loads a full source catalog.
+- The Studio plugin loads `source-id-index.tsv` once, then lazily loads shard files with an LRU cache.
+- Metadata records source identity only, such as `Composable`, `ComposableCallSite`, and `ModifierCallSite`; it does not build text or tag lookup tables.
 
-外部库如果希望暴露 locator metadata，可在 AAR/JAR 中携带：
+External libraries can expose locator metadata by packaging:
 
 ```text
 META-INF/compose-locator/compose-locator-metadata.json
 ```
 
-旧的 asset-based source catalog 路径已经移除，不作为最终架构的一部分。
+The old asset-based source catalog path has been removed from the final architecture.
 
-## 已覆盖场景
+## Covered Scenarios
 
-- text、content description、已有 testTag、role、clickable、bounds 的 Semantics 采集。
-- 通过反射遍历 `AndroidComposeView.root` / `LayoutInfo` 的 LayoutNode fallback。
-- 动态文案和重复固定文案下的 compiler-injected source marker。
-- 无 `Modifier` 参数 wrapper composable 的 ASM source-boundary fallback。
-- 多 Activity、多 Compose root。
-- Popup / Dialog / DropdownMenu window root 和 top-window hit filtering。
-- 嵌套 Dialog + DropdownMenu、ModalBottomSheet、AndroidView mixed-content boundary。
-- LazyVerticalGrid、重复 LazyColumn row、NavHost 多页面。
-- 两个相同“确认”按钮等重复文案场景，通过 source identity 而不是文案匹配定位。
-- deterministic source-backed node id，process-local id 仅作为 fallback。
-- Android Studio 插件本地 ZIP 打包。
+- Semantics capture for text, content description, existing testTag, role, clickability, and bounds.
+- LayoutNode fallback through reflective traversal of `AndroidComposeView.root` / `LayoutInfo`.
+- Compiler-injected source markers for dynamic text and duplicate fixed text.
+- ASM source-boundary fallback for wrapper composables without a `Modifier` parameter.
+- Multiple activities and multiple Compose roots.
+- Popup, Dialog, and DropdownMenu window roots with top-window hit filtering.
+- Nested Dialog plus DropdownMenu, ModalBottomSheet, and AndroidView mixed-content boundaries.
+- LazyVerticalGrid, repeated LazyColumn rows, and NavHost multi-page flows.
+- Duplicate text such as two `Confirm` buttons, resolved by source identity rather than text matching.
+- Deterministic source-backed node ids, with process-local ids used only as fallback.
+- Local Android Studio plugin ZIP packaging.
 
-demo app 中没有添加 `.locatorNode(...)`、`.testTag(...)`、root collector 或 Application bridge。
+The demo app intentionally does not add `.locatorNode(...)`, `.testTag(...)`, root collectors, or an Application bridge.
 
-## 团队推广
+## Team Rollout
 
-团队推广文档：
+Team rollout documents:
 
-- [docs/team-rollout.md](docs/team-rollout.md)：接入边界、兼容性、CI 门禁、性能预算、design-system 回归、推广阶段、问题排查。
-- [docs/release-engineering.md](docs/release-engineering.md)：Maven 坐标、Studio ZIP staging、release gate、版本规则。
-- [docs/public-publishing.md](docs/public-publishing.md)：官网、Maven Central、Gradle Plugin Portal、JetBrains Marketplace 发布准备。
-- [docs/compatibility-matrix.json](docs/compatibility-matrix.json)：机器可读兼容性矩阵。
+- [docs/team-rollout.md](docs/team-rollout.md): integration boundaries, compatibility, CI gates, performance budgets, design-system regression, rollout phases, and troubleshooting.
+- [docs/release-engineering.md](docs/release-engineering.md): Maven coordinates, Studio ZIP staging, release gates, and versioning rules.
+- [docs/public-publishing.md](docs/public-publishing.md): website, Maven Central, Gradle Plugin Portal, and JetBrains Marketplace publishing preparation.
+- [docs/compatibility-matrix.json](docs/compatibility-matrix.json): machine-readable compatibility matrix.
 
-推荐 CI 门禁：
+Recommended CI gates:
 
 ```bash
 ./gradlew verifyCodeLocator
@@ -268,9 +270,9 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 ./gradlew :app:assembleDebug :app:verifyComposeCompilerSourceAlignment
 ```
 
-## 当前验证基线
+## Current Verification Baseline
 
-当前 workspace 已通过：
+The current workspace has passed:
 
 - `./gradlew verifyCodeLocator`
 - `./gradlew verifyComposeLocatorCiTemplate`
@@ -281,53 +283,55 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 - `./gradlew verifyCodeLocatorDevice`
 - `./gradlew verifyComposeLocatorRolloutReadiness`
 - `./gradlew verifyComposeLocatorReleasePackage`
-- Studio plugin ZIP 结构验证
-- release APK boundary 验证
-- source identity 跨 app 重启稳定性验证
+- Studio plugin ZIP structure verification
+- release APK boundary verification
+- source identity stability across app restarts
 
-已做过的真实工程试点：
+Real project trial:
 
-- `ClinicTreatmentPad` 接入后可成功构建。
-- sourceId/index 架构更新后生成 1252 条 source-identity-only Studio index entries。
-- forced Kotlin compile 后验证 570 个 compiler-injected source IDs。
-- debug APK 未包含 legacy compose-locator metadata/source-catalog entries。
+- `ClinicTreatmentPad` built successfully after integration.
+- After the sourceId/index architecture update, it generated 1252 source-identity-only Studio index entries.
+- A forced Kotlin compile verified 570 compiler-injected source IDs.
+- Its debug APK did not contain legacy compose-locator metadata or source-catalog entries.
 
-性能基线：
+Performance baseline:
 
-- 250 个文件 / 4000 个 composable 的 synthetic scan 约 269 ms。
-- metadata encode/decode 约 100 ms。
-- 80 个 AAR metadata extraction 约 1315 ms。
-- runtime 20k-node / 2000-query hit-test batch 约 122 ms。
+- Synthetic scan for 250 files / 4000 composables: about 269 ms.
+- Metadata encode/decode: about 100 ms.
+- 80 AAR metadata extractions: about 1315 ms.
+- Runtime 20k-node / 2000-query hit-test batch: about 122 ms.
 
-## 发布状态
+## Release Status
 
-- GitHub 仓库：[nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
-- GitHub Release：[v0.1.0](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
-- Maven group：`io.github.nianzixin`
-- Gradle plugin id：`io.github.nianzixin.compose-locator`
-- Team convention plugin id：`io.github.nianzixin.team-compose-locator`
+- GitHub repository: [nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
+- GitHub Release: [v0.1.0](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+- Maven group: `io.github.nianzixin`
+- Gradle plugin id: `io.github.nianzixin.compose-locator`
+- Team convention plugin id: `io.github.nianzixin.team-compose-locator`
 
-当前 release zip 已包含：
+The current release ZIP includes:
 
-- 静态 Maven 仓库
-- Android Studio 插件 ZIP
+- static Maven repository
+- Android Studio plugin ZIP
 - release manifest
-- SHA-256 checksum
-- rollout 文档
-- public publishing 文档
+- SHA-256 checksums
+- rollout documentation
+- public publishing documentation
+- `README.md`
+- `README-CN.md`
 
-尚未正式发布：
+Not yet published:
 
 - Maven Central
 - Gradle Plugin Portal
 - JetBrains Marketplace
 
-## 后续工作
+## Remaining Work
 
-- 在更大的生产 app 上运行 `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...`，并把报告纳入 CI 归档。
-- 为各团队自研 design-system 组件补充项目级回归 fixture。
-- 将 `build/composeLocator/release/maven` 和 `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip` 镜像到内部 Maven、官网 CDN 或正式发布平台。
-- 在可用的 Android Studio SDK 分发环境下，将本地 ZIP task 替换为官方 IntelliJ Platform Gradle Plugin 打包发布链路。
+- Run `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...` on a larger production app and archive the report in CI.
+- Add project-specific regression fixtures for each team's proprietary design-system components.
+- Mirror `build/composeLocator/release/maven` and `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip` to an internal Maven repository, public CDN, or official publishing platform.
+- Replace the local ZIP task with the official IntelliJ Platform Gradle Plugin packaging flow when a compatible Android Studio SDK distribution is available.
 
 ## License
 

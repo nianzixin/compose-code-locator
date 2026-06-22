@@ -1,5 +1,7 @@
 # Compose Code Locator
 
+[English](README.md)
+
 Compose Code Locator 是一个面向 Jetpack Compose 的源码定位工具，目标是做到类似 CodeLocator 的使用体验：在 Android Studio 插件里点击设备截图上的 UI 元素，直接跳转到对应 Compose 调用点。
 
 它的核心设计是“不侵入业务 UI 代码”：业务侧不需要手写 `.testTag(...)`、`.locatorNode(...)`、根部 collector、Application bridge 或 Activity bridge。源码身份由 Gradle 构建期、Kotlin IR compiler plugin 和 AGP ASM transform 注入；App debug runtime 只暴露紧凑的 `sourceId` 和节点边界，Android Studio 再通过本地索引把 `sourceId` 解析回文件行号。
