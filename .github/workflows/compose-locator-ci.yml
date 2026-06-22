@@ -36,7 +36,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Verify Compose Locator
-        run: ./gradlew --no-daemon verifyCodeLocator
+        run: ./gradlew --no-daemon verifyCodeLocator -Pcodelocator.studio.useStubs=true
 
       - name: Upload rollout report
         if: always()
@@ -88,4 +88,4 @@ jobs:
       - name: Verify device regression
         env:
           CODELOCATOR_DEVICE_SERIAL: ${{ inputs.device_serial }}
-        run: ./gradlew --no-daemon verifyCodeLocatorDevice
+        run: ./gradlew --no-daemon verifyCodeLocatorDevice -Pcodelocator.studio.useStubs=true

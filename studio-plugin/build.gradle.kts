@@ -13,9 +13,28 @@ val androidStudioLib = fileTree(androidStudioHome.resolve("lib")) {
     include("*.jar")
 }
 
+val intellijStubs = sourceSets.create("intellijStubs") {
+    java.srcDir("src/intellijStubs/java")
+}
+
+val forceIntellijStubs = providers.gradleProperty("codelocator.studio.useStubs")
+    .map(String::toBoolean)
+    .orElse(false)
+val useIntellijStubs = forceIntellijStubs.get() || androidStudioLib.files.isEmpty()
+
 dependencies {
     implementation(kotlin("stdlib"))
-    compileOnly(androidStudioLib)
+    if (useIntellijStubs) {
+        compileOnly(intellijStubs.output)
+    } else {
+        compileOnly(androidStudioLib)
+    }
+}
+
+if (useIntellijStubs) {
+    tasks.named("compileKotlin") {
+        dependsOn(tasks.named("compileIntellijStubsJava"))
+    }
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
