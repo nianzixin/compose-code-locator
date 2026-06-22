@@ -320,11 +320,13 @@ The current release ZIP includes:
 - `README.md`
 - `README-CN.md`
 
-Not yet published:
+Publishing automation is prepared for:
 
 - Maven Central
 - Gradle Plugin Portal
 - JetBrains Marketplace
+
+Actual public publishing still requires external account setup and credentials. See [docs/public-publishing.md](docs/public-publishing.md).
 
 ## Remaining Work
 

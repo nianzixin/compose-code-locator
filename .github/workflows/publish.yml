@@ -1,0 +1,143 @@
+name: Publish Compose Code Locator
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_maven_central:
+        description: "Upload signed Maven artifacts to Maven Central Portal"
+        required: true
+        default: false
+        type: boolean
+      maven_central_publishing_type:
+        description: "Central Portal publishing type"
+        required: true
+        default: "USER_MANAGED"
+        type: choice
+        options:
+          - USER_MANAGED
+          - AUTOMATIC
+      publish_gradle_plugin_portal:
+        description: "Publish Gradle plugins to Gradle Plugin Portal"
+        required: true
+        default: false
+        type: boolean
+      upload_marketplace_artifact:
+        description: "Build and upload the JetBrains Marketplace ZIP as workflow artifact"
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: compose-locator-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify public publishing readiness
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify readiness
+        run: ./gradlew --no-daemon verifyComposeLocatorPublicPublishingReadiness
+
+      - name: Upload readiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-locator-public-publishing-readiness
+          path: build/reports/composeLocator/public-publishing-readiness.md
+          if-no-files-found: ignore
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-locator-release-archive
+          path: build/composeLocator/compose-code-locator-*-release.zip
+          if-no-files-found: error
+
+      - name: Upload Marketplace ZIP
+        if: inputs.upload_marketplace_artifact == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-code-locator-studio-plugin
+          path: studio-plugin/build/distributions/compose-code-locator-*.zip
+          if-no-files-found: error
+
+  maven-central:
+    name: Publish Maven Central
+    needs: verify
+    runs-on: macos-14
+    timeout-minutes: 45
+    if: inputs.publish_maven_central == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Upload Central Portal deployment
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          CENTRAL_PORTAL_TOKEN: ${{ secrets.CENTRAL_PORTAL_TOKEN }}
+          CENTRAL_PORTAL_USERNAME: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
+          CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+          CENTRAL_PORTAL_PUBLISHING_TYPE: ${{ inputs.maven_central_publishing_type }}
+        run: ./gradlew --no-daemon publishComposeLocatorToMavenCentral
+
+      - name: Upload Central bundle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-locator-central-diagnostics
+          path: |
+            build/composeLocator/central/compose-code-locator-*-central-bundle.zip
+            build/composeLocator/central/deployment-id.txt
+          if-no-files-found: ignore
+
+  gradle-plugin-portal:
+    name: Publish Gradle Plugin Portal
+    needs: verify
+    runs-on: macos-14
+    timeout-minutes: 30
+    if: inputs.publish_gradle_plugin_portal == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Publish Gradle plugins
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: ./gradlew --no-daemon publishComposeLocatorGradlePlugins

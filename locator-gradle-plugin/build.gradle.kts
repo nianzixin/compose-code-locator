@@ -2,6 +2,8 @@ plugins {
     `java-gradle-plugin`
     kotlin("jvm") version "2.0.21"
     `maven-publish`
+    signing
+    id("com.gradle.plugin-publish") version "1.3.1"
 }
 
 group = "io.github.nianzixin"
@@ -15,21 +17,26 @@ kotlin {
 
 java {
     withSourcesJar()
+    withJavadocJar()
 }
 
 gradlePlugin {
+    website.set(publicGitHubUrl)
+    vcsUrl.set("$publicGitHubUrl.git")
     plugins {
         create("composeCodeLocator") {
             id = "io.github.nianzixin.compose-locator"
             implementationClass = "dev.codelocator.gradle.ComposeLocatorPlugin"
             displayName = "Compose Code Locator"
             description = "Debug-only source metadata injection scaffold for Compose code location."
+            tags.set(listOf("android", "compose", "debugging", "source-navigation"))
         }
         create("teamComposeCodeLocator") {
             id = "io.github.nianzixin.team-compose-locator"
             implementationClass = "dev.codelocator.gradle.ComposeLocatorTeamPlugin"
             displayName = "Team Compose Code Locator"
             description = "Team convention plugin that applies Compose Code Locator and wires debug-only runtime dependencies."
+            tags.set(listOf("android", "compose", "debugging", "convention-plugin"))
         }
     }
 }
@@ -83,4 +90,18 @@ publishing {
             url = layout.projectDirectory.dir("../build/composeLocator/release/maven").asFile.toURI()
         }
     }
+}
+
+signing {
+    val signingKey = providers.environmentVariable("SIGNING_KEY")
+        .orElse(providers.gradleProperty("signingInMemoryKey"))
+        .orNull
+    val signingPassword = providers.environmentVariable("SIGNING_PASSWORD")
+        .orElse(providers.gradleProperty("signingInMemoryKeyPassword"))
+        .orNull
+    if (!signingKey.isNullOrBlank()) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    isRequired = !signingKey.isNullOrBlank()
+    sign(publishing.publications)
 }

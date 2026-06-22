@@ -318,11 +318,13 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 - rollout 文档
 - public publishing 文档
 
-尚未正式发布：
+已经准备好发布自动化：
 
 - Maven Central
 - Gradle Plugin Portal
 - JetBrains Marketplace
+
+真正对外发布仍需要外部账号配置和凭据。见 [docs/public-publishing.md](docs/public-publishing.md)。
 
 ## 后续工作
 

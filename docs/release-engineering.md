@@ -113,6 +113,14 @@ Release APK checks must prove no locator runtime implementation, debug server pe
 
 The repository includes `.github/workflows/compose-locator-ci.yml` as a baseline CI template. Use hosted macOS runners for non-device gates and a self-hosted runner with adb access for `verifyCodeLocatorDevice`.
 
+Public release readiness is checked with:
+
+```bash
+./gradlew verifyComposeLocatorPublicPublishingReadiness
+```
+
+Credential-dependent public publishing is driven by `.github/workflows/publish.yml`. Maven Central upload requires GPG signing plus Central Portal credentials. Gradle Plugin Portal publishing requires `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`. JetBrains Marketplace first publication remains manual per JetBrains Marketplace policy; the workflow uploads the Studio plugin ZIP as a release artifact for review.
+
 ## Versioning Rules
 
 - Patch version: bug fixes in runtime, Studio plugin, Gradle tasks, or documentation that do not change generated metadata format.

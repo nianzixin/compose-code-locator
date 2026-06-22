@@ -1,6 +1,8 @@
 import java.io.ByteArrayOutputStream
+import java.net.URLEncoder
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Base64
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -1435,16 +1437,28 @@ fun File.nonBlankLineCount(): Int {
 }
 
 fun File.sha256Hex(): String {
-    val digest = MessageDigest.getInstance("SHA-256")
+    return digestHex("SHA-256")
+}
+
+fun File.sha1Hex(): String {
+    return digestHex("SHA-1")
+}
+
+fun File.md5Hex(): String {
+    return digestHex("MD5")
+}
+
+fun File.digestHex(algorithm: String): String {
+    val selectedDigest = MessageDigest.getInstance(algorithm)
     inputStream().use { input ->
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         while (true) {
             val read = input.read(buffer)
             if (read < 0) break
-            digest.update(buffer, 0, read)
+            selectedDigest.update(buffer, 0, read)
         }
     }
-    return digest.digest().joinToString(separator = "") { byte ->
+    return selectedDigest.digest().joinToString(separator = "") { byte ->
         (byte.toInt() and 0xFF).toString(16).padStart(2, '0')
     }
 }
@@ -1956,6 +1970,38 @@ tasks.register("verifyComposeLocatorCiTemplate") {
     }
 }
 
+tasks.register("verifyComposeLocatorPublishWorkflow") {
+    group = "verification"
+    description = "Verifies the manual public publishing workflow covers Maven Central, Plugin Portal, and Marketplace artifacts."
+
+    doLast {
+        val workflow = file(".github/workflows/publish.yml")
+        check(workflow.isFile) {
+            "Missing Compose Locator publish workflow at ${workflow.absolutePath}"
+        }
+        val text = workflow.readText()
+        val requiredSnippets = listOf(
+            "workflow_dispatch:",
+            "publish_maven_central:",
+            "publish_gradle_plugin_portal:",
+            "upload_marketplace_artifact:",
+            "./gradlew --no-daemon verifyComposeLocatorPublicPublishingReadiness",
+            "SIGNING_KEY",
+            "CENTRAL_PORTAL_TOKEN",
+            "./gradlew --no-daemon publishComposeLocatorToMavenCentral",
+            "GRADLE_PUBLISH_KEY",
+            "GRADLE_PUBLISH_SECRET",
+            "./gradlew --no-daemon publishComposeLocatorGradlePlugins",
+            "studio-plugin/build/distributions/compose-code-locator-*.zip",
+        )
+        val missingSnippets = requiredSnippets.filterNot(text::contains)
+        check(missingSnippets.isEmpty()) {
+            "Compose Locator publish workflow is missing required snippets: $missingSnippets"
+        }
+        println("Compose Locator publish workflow verified")
+    }
+}
+
 tasks.register("verifyComposeLocatorTeamConvention") {
     group = "verification"
     description = "Verifies the team convention plugin applies locator instrumentation and scopes runtime dependencies safely."
@@ -2195,12 +2241,13 @@ tasks.register("stageComposeLocatorRelease") {
             buildString {
                 appendLine("# Compose Code Locator ${project.version} Release")
                 appendLine()
-                appendLine("This package contains the internal Maven repository, Android Studio plugin ZIP, rollout documentation, compatibility matrix, and SHA-256 checksum manifest.")
+                appendLine("This package contains the Maven repository, Android Studio plugin ZIP, public publishing notes, rollout documentation, compatibility matrix, and SHA-256 checksum manifest.")
                 appendLine()
                 appendLine("## Package Contents")
                 appendLine()
-                appendLine("- `maven/`: Maven artifacts and Gradle plugin marker artifacts.")
+                appendLine("- `maven/`: Maven artifacts and Gradle plugin marker artifacts for static Maven hosting.")
                 appendLine("- `studio-plugin/compose-code-locator-${project.version}.zip`: Android Studio plugin ZIP.")
+                appendLine("- `README.md`: release quick start.")
                 appendLine("- `README-CN.md`: Chinese project README and architecture overview.")
                 appendLine("- `docs/team-rollout.md`: team rollout guide and CI gates.")
                 appendLine("- `docs/release-engineering.md`: release gates, coordinates, and versioning rules.")
@@ -2257,6 +2304,8 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine("```")
                 appendLine()
                 appendLine("Verify package transfer integrity with `release-checksums.sha256` before publishing to teams.")
+                appendLine()
+                appendLine("For Maven Central, Gradle Plugin Portal, and JetBrains Marketplace publishing, see `docs/public-publishing.md`.")
             },
         )
         file("README-CN.md").copyTo(chineseReadmeFile.get().asFile, overwrite = true)
@@ -2376,6 +2425,7 @@ tasks.register("verifyComposeLocatorReleasePackage") {
             "io.github.nianzixin.team-compose-locator" in quickStartText &&
                 "studio-plugin/compose-code-locator-$version.zip" in quickStartText &&
                 "README-CN.md" in quickStartText &&
+                "docs/public-publishing.md" in quickStartText &&
                 "verifyCodeLocator" in quickStartText &&
                 "release-checksums.sha256" in quickStartText,
         ) {
@@ -2490,6 +2540,268 @@ tasks.register("verifyComposeLocatorReleaseArchive") {
             "Compose Locator release archive must not contain local build smoke/intermediate files"
         }
         println("Compose Locator release archive verified at ${archive.absolutePath}")
+    }
+}
+
+val centralBundleFile = layout.buildDirectory.file("composeLocator/central/compose-code-locator-${project.version}-central-bundle.zip")
+
+tasks.register("packageComposeLocatorCentralBundle") {
+    group = "publishing"
+    description = "Packages signed Maven artifacts into a Central Portal deployment bundle."
+    dependsOn("stageComposeLocatorRelease")
+
+    outputs.file(centralBundleFile)
+
+    doLast {
+        val releaseMavenRoot = layout.buildDirectory.dir("composeLocator/release/maven").get().asFile
+        check(releaseMavenRoot.isDirectory) {
+            "Missing staged Maven repository: ${releaseMavenRoot.absolutePath}"
+        }
+
+        val centralRoot = layout.buildDirectory.dir("composeLocator/central/staging").get().asFile
+        centralRoot.deleteRecursively()
+        centralRoot.mkdirs()
+        releaseMavenRoot.copyRecursively(centralRoot, overwrite = true)
+
+        val publishableExtensions = setOf("jar", "aar", "pom", "module")
+        val publishableFiles = centralRoot
+            .walkTopDown()
+            .filter { it.isFile && it.extension in publishableExtensions }
+            .toList()
+        check(publishableFiles.isNotEmpty()) {
+            "No Maven artifacts found for Central Portal bundle in ${centralRoot.absolutePath}"
+        }
+        val missingSignatures = publishableFiles
+            .filterNot { file -> file.resolveSibling("${file.name}.asc").isFile }
+            .map { it.relativeTo(centralRoot).invariantSeparatorsPath }
+        check(missingSignatures.isEmpty()) {
+            "Central Portal release requires GPG signatures. Missing .asc files:\n${missingSignatures.joinToString("\n")}\n" +
+                "Provide SIGNING_KEY and SIGNING_PASSWORD, then rerun the release task."
+        }
+
+        publishableFiles.forEach { file ->
+            file.resolveSibling("${file.name}.md5").writeText("${file.md5Hex()}\n")
+            file.resolveSibling("${file.name}.sha1").writeText("${file.sha1Hex()}\n")
+        }
+
+        val bundle = centralBundleFile.get().asFile
+        bundle.parentFile.mkdirs()
+        if (bundle.exists()) bundle.delete()
+        ZipOutputStream(bundle.outputStream()).use { zip ->
+            centralRoot
+                .walkTopDown()
+                .filter { it.isFile }
+                .sortedBy { it.relativeTo(centralRoot).invariantSeparatorsPath }
+                .forEach { file ->
+                    val entryName = file.relativeTo(centralRoot).invariantSeparatorsPath
+                    zip.putNextEntry(ZipEntry(entryName))
+                    file.inputStream().use { input -> input.copyTo(zip) }
+                    zip.closeEntry()
+                }
+        }
+        println("Compose Locator Central Portal bundle packaged at ${bundle.absolutePath}")
+    }
+}
+
+tasks.register("verifyComposeLocatorCentralBundle") {
+    group = "verification"
+    description = "Verifies the Central Portal bundle contains signed artifacts and legacy checksums."
+    dependsOn("packageComposeLocatorCentralBundle")
+
+    doLast {
+        val bundle = centralBundleFile.get().asFile
+        check(bundle.isFile) {
+            "Missing Central Portal bundle: ${bundle.absolutePath}"
+        }
+        val entries = ZipFile(bundle).use { zip ->
+            zip.entries().asSequence().map { it.name }.toSet()
+        }
+        val version = project.version.toString()
+        val requiredEntries = listOf(
+            "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version.jar",
+            "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version.jar.asc",
+            "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version.jar.md5",
+            "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version.jar.sha1",
+            "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version-javadoc.jar",
+            "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar",
+            "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar.asc",
+            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.jar",
+            "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.jar",
+            "io/github/nianzixin/team-compose-locator/io.github.nianzixin.team-compose-locator.gradle.plugin/$version/io.github.nianzixin.team-compose-locator.gradle.plugin-$version.pom",
+        )
+        val missing = requiredEntries.filterNot(entries::contains)
+        check(missing.isEmpty()) {
+            "Central Portal bundle is missing entries: $missing"
+        }
+        println("Compose Locator Central Portal bundle verified at ${bundle.absolutePath}")
+    }
+}
+
+fun Project.centralPortalAuthorizationHeader(): String {
+    val explicitToken = providers.environmentVariable("CENTRAL_PORTAL_TOKEN")
+        .orElse(providers.gradleProperty("centralPortalToken"))
+        .orNull
+    if (!explicitToken.isNullOrBlank()) {
+        return if (explicitToken.startsWith("Bearer ")) explicitToken else "Bearer $explicitToken"
+    }
+
+    val username = providers.environmentVariable("CENTRAL_PORTAL_USERNAME")
+        .orElse(providers.gradleProperty("centralPortalUsername"))
+        .orNull
+    val password = providers.environmentVariable("CENTRAL_PORTAL_PASSWORD")
+        .orElse(providers.gradleProperty("centralPortalPassword"))
+        .orNull
+    check(!username.isNullOrBlank() && !password.isNullOrBlank()) {
+        "Missing Central Portal credentials. Set CENTRAL_PORTAL_TOKEN or CENTRAL_PORTAL_USERNAME/CENTRAL_PORTAL_PASSWORD."
+    }
+    val token = Base64.getEncoder().encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
+    return "Bearer $token"
+}
+
+tasks.register("publishComposeLocatorToMavenCentral") {
+    group = "publishing"
+    description = "Uploads the signed Central Portal bundle. Set codelocator.central.publishingType=AUTOMATIC to auto-publish."
+    dependsOn("verifyComposeLocatorCentralBundle")
+
+    doLast {
+        val bundle = centralBundleFile.get().asFile
+        val publishingType = providers.gradleProperty("codelocator.central.publishingType")
+            .orElse(providers.environmentVariable("CENTRAL_PORTAL_PUBLISHING_TYPE"))
+            .orElse("USER_MANAGED")
+            .get()
+        val deploymentName = providers.gradleProperty("codelocator.central.deploymentName")
+            .orElse("compose-code-locator-${project.version}")
+            .get()
+        val query = "name=${URLEncoder.encode(deploymentName, "UTF-8")}&publishingType=${URLEncoder.encode(publishingType, "UTF-8")}"
+        val connection = URL("https://central.sonatype.com/api/v1/publisher/upload?$query").openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.connectTimeout = 30_000
+        connection.readTimeout = 120_000
+        connection.doOutput = true
+        connection.setRequestProperty("Authorization", project.centralPortalAuthorizationHeader())
+        connection.setRequestProperty("Content-Type", "application/octet-stream")
+        bundle.inputStream().use { input ->
+            connection.outputStream.use { output -> input.copyTo(output) }
+        }
+        val responseCode = connection.responseCode
+        val body = if (responseCode in 200..299) {
+            connection.inputStream.bufferedReader().use { it.readText() }
+        } else {
+            connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+        }
+        check(responseCode in 200..299) {
+            "Central Portal upload failed with HTTP $responseCode:\n$body"
+        }
+        val deploymentId = body.trim()
+        val deploymentIdFile = layout.buildDirectory.file("composeLocator/central/deployment-id.txt").get().asFile
+        deploymentIdFile.parentFile.mkdirs()
+        deploymentIdFile.writeText("$deploymentId\n")
+        println("Compose Locator Central Portal deployment uploaded: $deploymentId")
+        println("Deployment id written to ${deploymentIdFile.absolutePath}")
+    }
+}
+
+tasks.register("checkComposeLocatorMavenCentralDeployment") {
+    group = "publishing"
+    description = "Checks a Central Portal deployment status. Pass -Pcodelocator.central.deploymentId=<id> or run upload first."
+
+    doLast {
+        val deploymentId = providers.gradleProperty("codelocator.central.deploymentId").orNull
+            ?: layout.buildDirectory.file("composeLocator/central/deployment-id.txt").get().asFile
+                .takeIf(File::isFile)
+                ?.readText()
+                ?.trim()
+        check(!deploymentId.isNullOrBlank()) {
+            "Missing Central Portal deployment id. Set -Pcodelocator.central.deploymentId=<id> or run publishComposeLocatorToMavenCentral first."
+        }
+        val query = URLEncoder.encode(deploymentId, "UTF-8")
+        val connection = URL("https://central.sonatype.com/api/v1/publisher/status?id=$query").openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.connectTimeout = 30_000
+        connection.readTimeout = 60_000
+        connection.setRequestProperty("Authorization", project.centralPortalAuthorizationHeader())
+        val responseCode = connection.responseCode
+        val body = if (responseCode in 200..299) {
+            connection.inputStream.bufferedReader().use { it.readText() }
+        } else {
+            connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+        }
+        check(responseCode in 200..299) {
+            "Central Portal status request failed with HTTP $responseCode:\n$body"
+        }
+        println(body)
+    }
+}
+
+tasks.register("publishComposeLocatorGradlePlugins") {
+    group = "publishing"
+    description = "Publishes Compose Locator Gradle plugins to the Gradle Plugin Portal from the included build."
+    dependsOn(gradle.includedBuild("locator-gradle-plugin").task(":publishPlugins"))
+}
+
+tasks.register("verifyComposeLocatorMarketplacePackage") {
+    group = "verification"
+    description = "Verifies the Android Studio plugin ZIP and Marketplace-facing plugin metadata."
+    dependsOn(":studio-plugin:verifyStudioPluginPackaging")
+
+    doLast {
+        val version = project.version.toString()
+        val pluginXml = project(":studio-plugin").file("src/main/resources/META-INF/plugin.xml")
+        val pluginXmlText = pluginXml.readText()
+        check("<id>io.github.nianzixin.compose-code-locator</id>" in pluginXmlText) {
+            "Marketplace plugin id must use the public namespace in ${pluginXml.absolutePath}"
+        }
+        check("nianzixin" in pluginXmlText && "https://github.com/nianzixin/compose-code-locator" in pluginXmlText) {
+            "Marketplace plugin vendor/description must reference the public project in ${pluginXml.absolutePath}"
+        }
+        val pluginZip = project(":studio-plugin").layout.buildDirectory
+            .file("distributions/compose-code-locator-$version.zip")
+            .get()
+            .asFile
+        check(pluginZip.isFile) {
+            "Missing Marketplace plugin ZIP: ${pluginZip.absolutePath}"
+        }
+        println("Compose Locator Marketplace package verified at ${pluginZip.absolutePath}")
+    }
+}
+
+tasks.register("verifyComposeLocatorPublicPublishingReadiness") {
+    group = "verification"
+    description = "Verifies public publishing configuration without requiring external credentials."
+    dependsOn(
+        "verifyComposeLocatorReleaseArchive",
+        "verifyComposeLocatorPublicCoordinates",
+        "verifyComposeLocatorMarketplacePackage",
+    )
+
+    doLast {
+        val signingConfigured = !providers.environmentVariable("SIGNING_KEY").orNull.isNullOrBlank() ||
+            !providers.gradleProperty("signingInMemoryKey").orNull.isNullOrBlank()
+        val centralConfigured = !providers.environmentVariable("CENTRAL_PORTAL_TOKEN").orNull.isNullOrBlank() ||
+            (!providers.environmentVariable("CENTRAL_PORTAL_USERNAME").orNull.isNullOrBlank() &&
+                !providers.environmentVariable("CENTRAL_PORTAL_PASSWORD").orNull.isNullOrBlank())
+        val gradlePluginPortalConfigured = !providers.environmentVariable("GRADLE_PUBLISH_KEY").orNull.isNullOrBlank() &&
+            !providers.environmentVariable("GRADLE_PUBLISH_SECRET").orNull.isNullOrBlank()
+        val marketplaceConfigured = !providers.environmentVariable("INTELLIJ_PLATFORM_PUBLISHING_TOKEN").orNull.isNullOrBlank() ||
+            !providers.environmentVariable("ORG_GRADLE_PROJECT_intellijPlatformPublishingToken").orNull.isNullOrBlank()
+
+        val report = layout.buildDirectory.file("reports/composeLocator/public-publishing-readiness.md").get().asFile
+        report.parentFile.mkdirs()
+        report.writeText(
+            buildString {
+                appendLine("# Compose Locator Public Publishing Readiness")
+                appendLine()
+                appendLine("- Version: `${project.version}`")
+                appendLine("- Release archive: `build/composeLocator/compose-code-locator-${project.version}-release.zip`")
+                appendLine("- Maven Central signing configured: `$signingConfigured`")
+                appendLine("- Maven Central credentials configured: `$centralConfigured`")
+                appendLine("- Gradle Plugin Portal credentials configured: `$gradlePluginPortalConfigured`")
+                appendLine("- JetBrains Marketplace token configured: `$marketplaceConfigured`")
+                appendLine()
+                appendLine("Credential-dependent publish tasks are intentionally not run by this readiness gate.")
+            },
+        )
+        println("Compose Locator public publishing readiness report written to ${report.absolutePath}")
     }
 }
 
@@ -2710,6 +3022,8 @@ tasks.register("verifyCodeLocator") {
         "verifyComposeLocatorReleaseConsumer",
         "verifyComposeLocatorReleasePackage",
         "verifyComposeLocatorPublicCoordinates",
+        "verifyComposeLocatorPublicPublishingReadiness",
+        "verifyComposeLocatorPublishWorkflow",
         "verifyComposeLocatorRolloutReadiness",
         "verifyComposeLocatorReleaseBoundary",
         "verifyComposeLocatorTeamConvention",

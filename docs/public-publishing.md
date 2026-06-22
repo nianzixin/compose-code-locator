@@ -84,7 +84,50 @@ Before publishing publicly:
 - Register and verify the `io.github.nianzixin` namespace in Central Portal.
 - Confirm the project license. POM metadata currently declares Apache License 2.0; add a matching `LICENSE` file before public release.
 - Configure GPG signing and Central Portal credentials in CI secrets.
-- Publish release artifacts with sources JARs and signed Maven publications.
+- Publish release artifacts with sources JARs, javadoc JARs, signed Maven publications, and Central Portal checksums.
+
+Required secrets:
+
+```text
+SIGNING_KEY
+SIGNING_PASSWORD
+CENTRAL_PORTAL_TOKEN
+```
+
+`CENTRAL_PORTAL_TOKEN` may be omitted if both of these are provided instead:
+
+```text
+CENTRAL_PORTAL_USERNAME
+CENTRAL_PORTAL_PASSWORD
+```
+
+Local preflight:
+
+```bash
+SIGNING_KEY="$(cat private-key.asc)" SIGNING_PASSWORD=... \
+  ./gradlew --no-daemon verifyComposeLocatorCentralBundle
+```
+
+Upload to Central Portal:
+
+```bash
+SIGNING_KEY="$(cat private-key.asc)" SIGNING_PASSWORD=... CENTRAL_PORTAL_TOKEN=... \
+  ./gradlew --no-daemon publishComposeLocatorToMavenCentral
+```
+
+By default, uploads use `USER_MANAGED`, so the deployment must be reviewed and published in Central Portal. To request automatic publishing after validation:
+
+```bash
+./gradlew --no-daemon publishComposeLocatorToMavenCentral \
+  -Pcodelocator.central.publishingType=AUTOMATIC
+```
+
+Check deployment status:
+
+```bash
+./gradlew --no-daemon checkComposeLocatorMavenCentralDeployment \
+  -Pcodelocator.central.deploymentId=<deployment-id>
+```
 
 ## Gradle Plugin Portal
 
@@ -95,7 +138,21 @@ io.github.nianzixin.compose-locator
 io.github.nianzixin.team-compose-locator
 ```
 
-The plugin marker artifacts are already generated and verified in the staged Maven repository. For Gradle Plugin Portal release, add `com.gradle.plugin-publish`, configure plugin website/VCS/tags, and publish with Plugin Portal credentials.
+The included Gradle plugin build applies `com.gradle.plugin-publish` and configures website, VCS URL, display names, descriptions, and tags.
+
+Required secrets:
+
+```text
+GRADLE_PUBLISH_KEY
+GRADLE_PUBLISH_SECRET
+```
+
+Publish:
+
+```bash
+GRADLE_PUBLISH_KEY=... GRADLE_PUBLISH_SECRET=... \
+  ./gradlew --no-daemon publishComposeLocatorGradlePlugins
+```
 
 ## JetBrains Marketplace
 
@@ -105,4 +162,32 @@ The Android Studio plugin ZIP is generated at:
 studio-plugin/build/distributions/compose-code-locator-0.1.0.zip
 ```
 
-For Marketplace release, create a JetBrains Marketplace plugin listing, upload the ZIP for the first release, and configure token-based publishing after approval.
+Current Marketplace plugin id:
+
+```text
+io.github.nianzixin.compose-code-locator
+```
+
+Official JetBrains Marketplace documentation requires the first plugin publication to be uploaded manually. Create the listing at JetBrains Marketplace, upload the ZIP above, and wait for review.
+
+After the first manual upload exists, token-based publishing can be wired through the official IntelliJ Platform Gradle Plugin. Until this project migrates the custom local ZIP task to that plugin, the CI workflow uploads the Marketplace ZIP as an artifact for manual submission instead of calling an unsupported API.
+
+## GitHub Actions
+
+Manual public publishing workflow:
+
+```text
+.github/workflows/publish.yml
+```
+
+The workflow always runs:
+
+```bash
+./gradlew --no-daemon verifyComposeLocatorPublicPublishingReadiness
+```
+
+Then it can optionally:
+
+- upload a signed Central Portal deployment
+- publish Gradle plugins to the Gradle Plugin Portal
+- upload the Android Studio plugin ZIP as a workflow artifact for JetBrains Marketplace submission

@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm")
     `maven-publish`
+    signing
 }
 
 kotlin {
@@ -9,6 +10,7 @@ kotlin {
 
 java {
     withSourcesJar()
+    withJavadocJar()
 }
 
 dependencies {
@@ -53,4 +55,18 @@ publishing {
             url = rootProject.layout.buildDirectory.dir("composeLocator/release/maven").get().asFile.toURI()
         }
     }
+}
+
+signing {
+    val signingKey = providers.environmentVariable("SIGNING_KEY")
+        .orElse(providers.gradleProperty("signingInMemoryKey"))
+        .orNull
+    val signingPassword = providers.environmentVariable("SIGNING_PASSWORD")
+        .orElse(providers.gradleProperty("signingInMemoryKeyPassword"))
+        .orNull
+    if (!signingKey.isNullOrBlank()) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    isRequired = !signingKey.isNullOrBlank()
+    sign(publishing.publications)
 }

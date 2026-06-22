@@ -1,10 +1,10 @@
 <idea-plugin>
-    <id>dev.codelocator.studio</id>
+    <id>io.github.nianzixin.compose-code-locator</id>
     <name>Compose Code Locator</name>
-    <vendor email="devnull@example.com">Code Locator</vendor>
+    <vendor url="https://github.com/nianzixin/compose-code-locator">nianzixin</vendor>
 
     <description><![CDATA[
-        Compose runtime locator prototype for jumping from screenshot coordinates to source.
+        Compose Code Locator provides Android Studio screenshot-to-source navigation for Jetpack Compose debug builds.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
