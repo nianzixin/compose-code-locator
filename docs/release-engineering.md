@@ -30,6 +30,9 @@ The package is written to:
 build/composeLocator/release/
   maven/
   studio-plugin/compose-code-locator-0.1.0.zip
+  README.md
+  README-CN.md
+  docs/
   release-manifest.txt
   release-checksums.sha256
 ```

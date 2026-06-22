@@ -2130,9 +2130,11 @@ tasks.register("stageComposeLocatorRelease") {
     val manifestFile = releaseDir.map { it.file("release-manifest.txt") }
     val checksumsFile = releaseDir.map { it.file("release-checksums.sha256") }
     val quickStartFile = releaseDir.map { it.file("README.md") }
+    val chineseReadmeFile = releaseDir.map { it.file("README-CN.md") }
 
     outputs.file(releaseDir.map { it.file("studio-plugin/compose-code-locator-${project.version}.zip") })
     outputs.file(quickStartFile)
+    outputs.file(chineseReadmeFile)
     outputs.file(releaseDir.map { it.file("docs/team-rollout.md") })
     outputs.file(releaseDir.map { it.file("docs/release-engineering.md") })
     outputs.file(releaseDir.map { it.file("docs/public-publishing.md") })
@@ -2167,6 +2169,7 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine()
                 appendLine("Documentation:")
                 appendLine("  README.md")
+                appendLine("  README-CN.md")
                 appendLine("  docs/team-rollout.md")
                 appendLine("  docs/release-engineering.md")
                 appendLine("  docs/public-publishing.md")
@@ -2198,6 +2201,7 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine()
                 appendLine("- `maven/`: Maven artifacts and Gradle plugin marker artifacts.")
                 appendLine("- `studio-plugin/compose-code-locator-${project.version}.zip`: Android Studio plugin ZIP.")
+                appendLine("- `README-CN.md`: Chinese project README and architecture overview.")
                 appendLine("- `docs/team-rollout.md`: team rollout guide and CI gates.")
                 appendLine("- `docs/release-engineering.md`: release gates, coordinates, and versioning rules.")
                 appendLine("- `docs/public-publishing.md`: website, Maven Central, Gradle Plugin Portal, and JetBrains Marketplace publishing notes.")
@@ -2255,6 +2259,7 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine("Verify package transfer integrity with `release-checksums.sha256` before publishing to teams.")
             },
         )
+        file("README-CN.md").copyTo(chineseReadmeFile.get().asFile, overwrite = true)
 
         val stagedDocs = releaseRoot.resolve("docs")
         stagedDocs.deleteRecursively()
@@ -2357,6 +2362,7 @@ tasks.register("verifyComposeLocatorReleasePackage") {
             "io.github.nianzixin.team-compose-locator" in manifestText &&
                 "release-checksums.sha256" in manifestText &&
             "README.md" in manifestText &&
+            "README-CN.md" in manifestText &&
             "docs/compatibility-matrix.json" in manifestText &&
             "docs/public-publishing.md" in manifestText &&
                 "verifyComposeLocatorCiTemplate" in manifestText &&
@@ -2369,10 +2375,20 @@ tasks.register("verifyComposeLocatorReleasePackage") {
         check(
             "io.github.nianzixin.team-compose-locator" in quickStartText &&
                 "studio-plugin/compose-code-locator-$version.zip" in quickStartText &&
+                "README-CN.md" in quickStartText &&
                 "verifyCodeLocator" in quickStartText &&
                 "release-checksums.sha256" in quickStartText,
         ) {
             "Missing or incomplete release quick start: ${quickStart.absolutePath}"
+        }
+        val chineseReadme = releaseDir.resolve("README-CN.md")
+        val chineseReadmeText = chineseReadme.takeIf(File::isFile)?.readText().orEmpty()
+        check(
+            "Compose Code Locator 是一个面向 Jetpack Compose 的源码定位工具" in chineseReadmeText &&
+                "io.github.nianzixin.team-compose-locator" in chineseReadmeText &&
+                "大项目设计" in chineseReadmeText,
+        ) {
+            "Missing or incomplete release Chinese README: ${chineseReadme.absolutePath}"
         }
         val requiredDocs = listOf(
             "docs/team-rollout.md",
@@ -2455,6 +2471,7 @@ tasks.register("verifyComposeLocatorReleaseArchive") {
         }
         val requiredEntries = listOf(
             "${prefix}README.md",
+            "${prefix}README-CN.md",
             "${prefix}release-manifest.txt",
             "${prefix}release-checksums.sha256",
             "${prefix}studio-plugin/compose-code-locator-$version.zip",
@@ -2496,6 +2513,7 @@ tasks.register("verifyComposeLocatorPublicCoordinates") {
         val filesToCheck = listOf(
             releaseDir.resolve("release-manifest.txt"),
             releaseDir.resolve("README.md"),
+            releaseDir.resolve("README-CN.md"),
             releaseDir.resolve("docs/compatibility-matrix.json"),
             releaseDir.resolve("docs/release-engineering.md"),
             releaseDir.resolve("docs/public-publishing.md"),
