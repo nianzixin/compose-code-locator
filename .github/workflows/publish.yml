@@ -69,7 +69,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Marketplace ZIP
-        if: inputs.upload_marketplace_artifact == 'true'
+        if: inputs.upload_marketplace_artifact == true || inputs.upload_marketplace_artifact == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: compose-code-locator-studio-plugin
@@ -81,7 +81,7 @@ jobs:
     needs: verify
     runs-on: macos-14
     timeout-minutes: 45
-    if: inputs.publish_maven_central == 'true'
+    if: inputs.publish_maven_central == true || inputs.publish_maven_central == 'true'
 
     steps:
       - name: Checkout
@@ -121,7 +121,7 @@ jobs:
     needs: verify
     runs-on: macos-14
     timeout-minutes: 30
-    if: inputs.publish_gradle_plugin_portal == 'true'
+    if: inputs.publish_gradle_plugin_portal == true || inputs.publish_gradle_plugin_portal == 'true'
 
     steps:
       - name: Checkout
