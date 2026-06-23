@@ -43,9 +43,9 @@
 - GitHub Actions CI template is available at `.github/workflows/compose-locator-ci.yml` with non-device PR gates and manual self-hosted adb device gates.
 - Release and consumer smoke gates require JDK 17, matching AGP 8 and the published Gradle plugin target.
 - Local Android Studio plugin ZIP packaging is available through `:studio-plugin:buildStudioPluginZip`.
-- Local release staging is available through `stageComposeLocatorRelease`; it produces `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip`, `README.md`, copied rollout/release docs, `release-manifest.txt`, and `release-checksums.sha256`.
+- Local release staging is available through `stageComposeLocatorRelease`; it produces `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip`, `README.md`, copied rollout/release docs, `release-manifest.txt`, and `release-checksums.sha256`.
 - Release package verification is available through `verifyComposeLocatorReleasePackage`; it checks runtime/compiler/Gradle plugin Maven artifacts, Gradle plugin marker POM coordinates/dependencies, sources artifacts, Studio plugin ZIP contents, release manifest, and SHA-256 checksums.
-- Single-file release archive verification is available through `verifyComposeLocatorReleaseArchive`; it produces and verifies `build/composeLocator/compose-code-locator-0.1.0-release.zip`.
+- Single-file release archive verification is available through `verifyComposeLocatorReleaseArchive`; it produces and verifies `build/composeLocator/compose-code-locator-0.1.1-release.zip`.
 - Public coordinate verification is available through `verifyComposeLocatorPublicCoordinates`; it rejects stale `dev.codelocator` Maven/plugin publishing coordinates in release artifacts and verifies staged Maven paths under `io/github/nianzixin`.
 - Release-boundary verification rejects locator runtime entries, debug server permissions, generated runtime sources, and compose-locator metadata assets in release APKs.
 - Root non-device verification aggregate `verifyCodeLocator` includes rollout readiness, compatibility matrix, CI template, window-root policy, team convention wiring, source alignment, performance, build-efficiency, release package/archive, release-boundary, protocol, and plugin packaging gates.
@@ -63,12 +63,12 @@
 - `.github/workflows/compose-locator-ci.yml` captures the current team CI shape: `verifyCodeLocator` on hosted macOS and `verifyCodeLocatorDevice` only on a manually triggered self-hosted adb runner.
 - `verifyComposeLocatorTeamConvention` verifies the preferred one-line plugin applies the core locator plugin and scopes runtime dependencies to debug app builds / compile-only library symbols.
 - `verifyComposeLocatorReleasePackage` passes and verifies staged Maven artifacts, Studio plugin ZIP, release manifest, and checksum manifest under `build/composeLocator/release`.
-- `verifyComposeLocatorReleaseArchive` passes and verifies `build/composeLocator/compose-code-locator-0.1.0-release.zip` contains Maven artifacts, Studio plugin ZIP, docs, release manifest, and checksum manifest.
+- `verifyComposeLocatorReleaseArchive` passes and verifies `build/composeLocator/compose-code-locator-0.1.1-release.zip` contains Maven artifacts, Studio plugin ZIP, docs, release manifest, and checksum manifest.
 - `verifyComposeLocatorPublicCoordinates` passes and verifies the staged release package uses `io.github.nianzixin` public coordinates.
 - `./gradlew verifyDemoDevice` passes on Pad `983d2183`, including Popup, Dialog/AlertDialog, DropdownMenu, LazyVerticalGrid, NavHost, duplicate fixed text, no-Modifier fallback, design-system-style slot wrappers, nested Dialog/DropdownMenu, ModalBottomSheet, and AndroidView mixed-content boundaries.
 - `./gradlew verifyCodeLocatorDevice` passes on Pad `983d2183`, including Studio device-flow click-to-source verification through the real Popup trigger and Popup CTA top-window hit-test.
 - `verifyStableDeviceNodeIds` now checks stable source identity across app restarts (`sourceId -> file:line`) rather than volatile runtime node ids.
-- `:studio-plugin:verifyStudioPluginPackaging` passes and verifies `studio-plugin/build/distributions/compose-code-locator-0.1.0.zip`.
+- `:studio-plugin:verifyStudioPluginPackaging` passes and verifies `studio-plugin/build/distributions/compose-code-locator-0.1.1.zip`.
 - `:locator-runtime-android:compileDebugKotlin`, `:studio-plugin:verifyStudioProtocol`, `:studio-plugin:verifyStudioPluginPackaging`, and `:demo-app:assembleDebug` pass after the navigation diagnostics and app-scoped socket changes.
 - `verifyComposeCompilerSourceAlignment` passes for demo app and demo feature modules.
 - `verifyComposeLocatorBuildEfficiency` passes and confirms default debug builds use the AGP ASM transform without running manual bytecode inspection tasks.
@@ -105,7 +105,7 @@
 
 1. Adapt `.github/workflows/compose-locator-ci.yml` to the team's CI system and run `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...` on production app modules as an archived artifact.
 2. Add project-specific fixtures for the target company's actual design-system wrappers before broad rollout.
-3. Mirror `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip`, and `build/composeLocator/release/release-checksums.sha256` to internal distribution.
+3. Mirror `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip`, and `build/composeLocator/release/release-checksums.sha256` to internal distribution.
 4. Replace the local ZIP task with official IntelliJ Platform Gradle Plugin packaging when a compatible Android Studio SDK distribution is available.
 
 ## Field Debug Notes

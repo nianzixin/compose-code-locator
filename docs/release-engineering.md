@@ -29,7 +29,7 @@ The package is written to:
 ```text
 build/composeLocator/release/
   maven/
-  studio-plugin/compose-code-locator-0.1.0.zip
+  studio-plugin/compose-code-locator-0.1.1.zip
   README.md
   README-CN.md
   docs/
@@ -42,19 +42,19 @@ build/composeLocator/release/
 Publish or mirror these coordinates into the team's internal Maven repository:
 
 ```text
-io.github.nianzixin:locator-runtime:0.1.0
-io.github.nianzixin:locator-runtime-android:0.1.0
-io.github.nianzixin:locator-compiler-plugin:0.1.0
-io.github.nianzixin:locator-gradle-plugin:0.1.0
-io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.0
-io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.0
+io.github.nianzixin:locator-runtime:0.1.1
+io.github.nianzixin:locator-runtime-android:0.1.1
+io.github.nianzixin:locator-compiler-plugin:0.1.1
+io.github.nianzixin:locator-gradle-plugin:0.1.1
+io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.1
+io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.1
 ```
 
 The Gradle plugin marker artifacts are required so app builds can use:
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.team-compose-locator") version "0.1.0"
+    id("io.github.nianzixin.team-compose-locator") version "0.1.1"
 }
 ```
 
@@ -83,7 +83,7 @@ dependencyResolutionManagement {
 }
 ```
 
-For team rollout, mirror `build/composeLocator/release/maven` into the internal Maven repository and install `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip` through Android Studio's local plugin installation flow. Publish `release-checksums.sha256` with the mirrored package so teams can verify staged Maven artifacts and the Studio plugin ZIP after transfer.
+For team rollout, mirror `build/composeLocator/release/maven` into the internal Maven repository and install `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip` through Android Studio's local plugin installation flow. Publish `release-checksums.sha256` with the mirrored package so teams can verify staged Maven artifacts and the Studio plugin ZIP after transfer.
 
 ## Release Gates
 

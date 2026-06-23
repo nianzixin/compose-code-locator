@@ -51,7 +51,7 @@ Compose Code Locator 是一个面向 Jetpack Compose 的源码定位工具，目
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.team-compose-locator") version "0.1.0"
+    id("io.github.nianzixin.team-compose-locator") version "0.1.1"
 }
 ```
 
@@ -59,17 +59,17 @@ plugins {
 
 ```kotlin
 // Android application 模块自动添加：
-debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.0")
+debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.1")
 
 // Android library 模块自动添加：
-compileOnly("io.github.nianzixin:locator-runtime-android:0.1.0")
+compileOnly("io.github.nianzixin:locator-runtime-android:0.1.1")
 ```
 
 如果需要更细粒度控制，也可以只接入底层插件：
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.compose-locator") version "0.1.0"
+    id("io.github.nianzixin.compose-locator") version "0.1.1"
 }
 ```
 
@@ -88,7 +88,7 @@ composeLocator {
 
 当前版本还没有发布到 Maven Central / Gradle Plugin Portal。如果你使用 GitHub Release 里的静态 Maven 包，需要先下载并解压：
 
-[compose-code-locator-0.1.0-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+[compose-code-locator-0.1.1-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
 
 然后把压缩包里的 `maven/` 放到内网 Maven、官网 CDN 或本地目录，并在业务工程 `settings.gradle.kts` 中配置：
 
@@ -114,7 +114,7 @@ dependencyResolutionManagement {
 本机验证也可以直接指向解压后的本地目录：
 
 ```kotlin
-maven("/absolute/path/to/compose-code-locator-0.1.0/maven")
+maven("/absolute/path/to/compose-code-locator-0.1.1/maven")
 ```
 
 ## Android Studio 插件
@@ -128,14 +128,14 @@ maven("/absolute/path/to/compose-code-locator-0.1.0/maven")
 产物位置：
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.0.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.1.zip
 ```
 
 安装方式：
 
 1. Android Studio 打开 `Settings | Plugins`。
 2. 选择 `Install Plugin from Disk...`。
-3. 选择上面的 `compose-code-locator-0.1.0.zip`。
+3. 选择上面的 `compose-code-locator-0.1.1.zip`。
 4. 重启 Android Studio。
 5. 打开接入了插件的 Android 工程，运行 debug app，使用工具窗口抓取截图并点击元素定位源码。
 
@@ -168,7 +168,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 release zip 产物：
 
 ```text
-build/composeLocator/compose-code-locator-0.1.0-release.zip
+build/composeLocator/compose-code-locator-0.1.1-release.zip
 ```
 
 验证 compiler source 对齐：
@@ -304,7 +304,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 ## 发布状态
 
 - GitHub 仓库：[nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
-- GitHub Release：[v0.1.0](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+- GitHub Release：[v0.1.1](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
 - Maven group：`io.github.nianzixin`
 - Gradle plugin id：`io.github.nianzixin.compose-locator`
 - Team convention plugin id：`io.github.nianzixin.team-compose-locator`
@@ -330,7 +330,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 
 - 在更大的生产 app 上运行 `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...`，并把报告纳入 CI 归档。
 - 为各团队自研 design-system 组件补充项目级回归 fixture。
-- 将 `build/composeLocator/release/maven` 和 `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip` 镜像到内部 Maven、官网 CDN 或正式发布平台。
+- 将 `build/composeLocator/release/maven` 和 `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip` 镜像到内部 Maven、官网 CDN 或正式发布平台。
 - 在可用的 Android Studio SDK 分发环境下，将本地 ZIP task 替换为官方 IntelliJ Platform Gradle Plugin 打包发布链路。
 
 ## License

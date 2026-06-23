@@ -73,11 +73,11 @@ The optional `.github/workflows/compose-locator-compatibility.yml` workflow defi
 ./gradlew verifyComposeLocatorReleasePackage
 ```
 
-This release gate stages and verifies the internal Maven artifacts, Gradle plugin marker artifacts, Android Studio plugin ZIP, release manifest, and SHA-256 checksum manifest. Mirror `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip`, and `build/composeLocator/release/release-checksums.sha256` to the team's internal distribution channel.
+This release gate stages and verifies the internal Maven artifacts, Gradle plugin marker artifacts, Android Studio plugin ZIP, release manifest, and SHA-256 checksum manifest. Mirror `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip`, and `build/composeLocator/release/release-checksums.sha256` to the team's internal distribution channel.
 
 The staged release also includes `README.md`, `README-CN.md`, `docs/team-rollout.md`, `docs/release-engineering.md`, and `docs/compatibility-matrix.json` so the internal package can be distributed as a self-contained onboarding bundle.
 
-Use `./gradlew verifyComposeLocatorReleaseArchive` when the team wants a single uploadable artifact. It verifies `build/composeLocator/compose-code-locator-0.1.0-release.zip` contains the staged Maven repository, Studio plugin ZIP, docs, release manifest, and checksum file.
+Use `./gradlew verifyComposeLocatorReleaseArchive` when the team wants a single uploadable artifact. It verifies `build/composeLocator/compose-code-locator-0.1.1-release.zip` contains the staged Maven repository, Studio plugin ZIP, docs, release manifest, and checksum file.
 
 ```bash
 CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice

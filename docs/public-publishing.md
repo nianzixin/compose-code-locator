@@ -5,19 +5,19 @@ This project is prepared for public coordinates owned by the GitHub account `nia
 ## Public Coordinates
 
 ```text
-io.github.nianzixin:locator-runtime:0.1.0
-io.github.nianzixin:locator-runtime-android:0.1.0
-io.github.nianzixin:locator-compiler-plugin:0.1.0
-io.github.nianzixin:locator-gradle-plugin:0.1.0
-io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.0
-io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.0
+io.github.nianzixin:locator-runtime:0.1.1
+io.github.nianzixin:locator-runtime-android:0.1.1
+io.github.nianzixin:locator-compiler-plugin:0.1.1
+io.github.nianzixin:locator-gradle-plugin:0.1.1
+io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.1
+io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.1
 ```
 
 Gradle plugin IDs:
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.team-compose-locator") version "0.1.0"
+    id("io.github.nianzixin.team-compose-locator") version "0.1.1"
 }
 ```
 
@@ -25,7 +25,7 @@ Use the lower-level plugin only when custom dependency management is needed:
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.compose-locator") version "0.1.0"
+    id("io.github.nianzixin.compose-locator") version "0.1.1"
 }
 ```
 
@@ -40,14 +40,14 @@ The current release archive already supports static Maven hosting.
 Upload the generated archive:
 
 ```text
-build/composeLocator/compose-code-locator-0.1.0-release.zip
+build/composeLocator/compose-code-locator-0.1.1-release.zip
 ```
 
 For a website/CDN release, unzip it and host:
 
 ```text
 maven/                                      -> https://your-domain.example/compose-locator/maven/
-studio-plugin/compose-code-locator-0.1.0.zip -> https://your-domain.example/compose-locator/download/
+studio-plugin/compose-code-locator-0.1.1.zip -> https://your-domain.example/compose-locator/download/
 README.md
 release-manifest.txt
 release-checksums.sha256
@@ -159,7 +159,7 @@ GRADLE_PUBLISH_KEY=... GRADLE_PUBLISH_SECRET=... \
 The Android Studio plugin ZIP is generated at:
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.0.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.1.zip
 ```
 
 Current Marketplace plugin id:

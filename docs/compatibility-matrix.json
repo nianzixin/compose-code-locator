@@ -63,15 +63,15 @@
   ],
   "publishing": {
     "mavenRepository": "build/composeLocator/release/maven",
-    "releaseArchive": "build/composeLocator/compose-code-locator-0.1.0-release.zip",
-    "studioPluginZip": "build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip",
+    "releaseArchive": "build/composeLocator/compose-code-locator-0.1.1-release.zip",
+    "studioPluginZip": "build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip",
     "coordinates": [
-      "io.github.nianzixin:locator-runtime:0.1.0",
-      "io.github.nianzixin:locator-runtime-android:0.1.0",
-      "io.github.nianzixin:locator-compiler-plugin:0.1.0",
-      "io.github.nianzixin:locator-gradle-plugin:0.1.0",
-      "io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.0",
-      "io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.0"
+      "io.github.nianzixin:locator-runtime:0.1.1",
+      "io.github.nianzixin:locator-runtime-android:0.1.1",
+      "io.github.nianzixin:locator-compiler-plugin:0.1.1",
+      "io.github.nianzixin:locator-gradle-plugin:0.1.1",
+      "io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.1",
+      "io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.1"
     ]
   }
 }

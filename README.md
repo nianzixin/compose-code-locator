@@ -51,7 +51,7 @@ Public coordinates use the GitHub namespace:
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.team-compose-locator") version "0.1.0"
+    id("io.github.nianzixin.team-compose-locator") version "0.1.1"
 }
 ```
 
@@ -59,17 +59,17 @@ plugins {
 
 ```kotlin
 // Added automatically to Android application modules:
-debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.0")
+debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.1")
 
 // Added automatically to Android library modules:
-compileOnly("io.github.nianzixin:locator-runtime-android:0.1.0")
+compileOnly("io.github.nianzixin:locator-runtime-android:0.1.1")
 ```
 
 For lower-level manual control, apply the core plugin directly:
 
 ```kotlin
 plugins {
-    id("io.github.nianzixin.compose-locator") version "0.1.0"
+    id("io.github.nianzixin.compose-locator") version "0.1.1"
 }
 ```
 
@@ -86,9 +86,9 @@ Normal debug integration does not require Application or Activity code changes. 
 
 ## Using The GitHub Release Maven Package
 
-Version `0.1.0` is not yet published to Maven Central or the Gradle Plugin Portal. To use the static Maven package from GitHub Release, download and unzip:
+Version `0.1.1` is not yet published to Maven Central or the Gradle Plugin Portal. To use the static Maven package from GitHub Release, download and unzip:
 
-[compose-code-locator-0.1.0-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+[compose-code-locator-0.1.1-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
 
 Mirror the `maven/` directory to an internal Maven repository, public CDN, or local directory, then configure `settings.gradle.kts`:
 
@@ -114,7 +114,7 @@ dependencyResolutionManagement {
 For local verification, point Gradle at the unzipped local Maven directory:
 
 ```kotlin
-maven("/absolute/path/to/compose-code-locator-0.1.0/maven")
+maven("/absolute/path/to/compose-code-locator-0.1.1/maven")
 ```
 
 ## Android Studio Plugin
@@ -128,14 +128,14 @@ Build the plugin ZIP:
 Output:
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.0.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.1.zip
 ```
 
 Install it from Android Studio:
 
 1. Open `Settings | Plugins`.
 2. Choose `Install Plugin from Disk...`.
-3. Select `compose-code-locator-0.1.0.zip`.
+3. Select `compose-code-locator-0.1.1.zip`.
 4. Restart Android Studio.
 5. Open an Android project that has integrated the Gradle plugin, run the debug app, capture a screenshot in the tool window, and click a UI element to navigate to source.
 
@@ -168,7 +168,7 @@ Build the distributable release package:
 Release archive:
 
 ```text
-build/composeLocator/compose-code-locator-0.1.0-release.zip
+build/composeLocator/compose-code-locator-0.1.1-release.zip
 ```
 
 Verify compiler source alignment:
@@ -304,7 +304,7 @@ Performance baseline:
 ## Release Status
 
 - GitHub repository: [nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
-- GitHub Release: [v0.1.0](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.0)
+- GitHub Release: [v0.1.1](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
 - Maven group: `io.github.nianzixin`
 - Gradle plugin id: `io.github.nianzixin.compose-locator`
 - Team convention plugin id: `io.github.nianzixin.team-compose-locator`
@@ -332,7 +332,7 @@ Actual public publishing still requires external account setup and credentials. 
 
 - Run `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...` on a larger production app and archive the report in CI.
 - Add project-specific regression fixtures for each team's proprietary design-system components.
-- Mirror `build/composeLocator/release/maven` and `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.0.zip` to an internal Maven repository, public CDN, or official publishing platform.
+- Mirror `build/composeLocator/release/maven` and `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip` to an internal Maven repository, public CDN, or official publishing platform.
 - Replace the local ZIP task with the official IntelliJ Platform Gradle Plugin packaging flow when a compatible Android Studio SDK distribution is available.
 
 ## License

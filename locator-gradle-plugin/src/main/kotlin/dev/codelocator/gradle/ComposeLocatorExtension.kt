@@ -11,7 +11,7 @@ open class ComposeLocatorExtension {
     var bytecodeInspectionOutput: String = "build/intermediates/composeLocator/inspection-report.txt"
     var bytecodeInstrumentationOutput: String = "build/intermediates/composeLocator/instrumentation-report.txt"
     var compilerPluginReportOutput: String = "build/intermediates/composeLocator/compiler-plugin-report.txt"
-    var compilerPluginArtifact: String = "io.github.nianzixin:locator-compiler-plugin:0.1.0"
+    var compilerPluginArtifact: String = "io.github.nianzixin:locator-compiler-plugin:0.1.1"
     var includePackages: List<String> = emptyList()
     var generateRuntimeMarkers: Boolean = true
     var enableBytecodeInspection: Boolean = false
