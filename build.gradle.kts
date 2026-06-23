@@ -4,6 +4,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Base64
 import java.security.MessageDigest
+import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -2679,14 +2680,19 @@ tasks.register("publishComposeLocatorToMavenCentral") {
             .get()
         val query = "name=${URLEncoder.encode(deploymentName, "UTF-8")}&publishingType=${URLEncoder.encode(publishingType, "UTF-8")}"
         val connection = URL("https://central.sonatype.com/api/v1/publisher/upload?$query").openConnection() as HttpURLConnection
+        val boundary = "ComposeLocatorBoundary${UUID.randomUUID().toString().replace("-", "")}"
         connection.requestMethod = "POST"
         connection.connectTimeout = 30_000
         connection.readTimeout = 120_000
         connection.doOutput = true
         connection.setRequestProperty("Authorization", project.centralPortalAuthorizationHeader())
-        connection.setRequestProperty("Content-Type", "application/octet-stream")
-        bundle.inputStream().use { input ->
-            connection.outputStream.use { output -> input.copyTo(output) }
+        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        connection.outputStream.buffered().use { output ->
+            output.write("--$boundary\r\n".toByteArray(Charsets.UTF_8))
+            output.write("Content-Disposition: form-data; name=\"bundle\"; filename=\"${bundle.name}\"\r\n".toByteArray(Charsets.UTF_8))
+            output.write("Content-Type: application/octet-stream\r\n\r\n".toByteArray(Charsets.UTF_8))
+            bundle.inputStream().use { input -> input.copyTo(output) }
+            output.write("\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8))
         }
         val responseCode = connection.responseCode
         val body = if (responseCode in 200..299) {
