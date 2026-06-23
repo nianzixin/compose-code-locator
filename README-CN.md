@@ -47,7 +47,19 @@ Compose Code Locator 是一个面向 Jetpack Compose 的源码定位工具，目
 
 ## 快速接入
 
-当前公开坐标使用 GitHub namespace：
+`0.1.1` 已发布到 Maven Central。业务工程需要保证 `pluginManagement` 能从 Maven Central 解析插件 marker：
+
+```kotlin
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
+接入团队 convention plugin：
 
 ```kotlin
 plugins {
@@ -86,7 +98,7 @@ composeLocator {
 
 ## 使用 GitHub Release 静态 Maven
 
-当前版本还没有发布到 Maven Central / Gradle Plugin Portal。如果你使用 GitHub Release 里的静态 Maven 包，需要先下载并解压：
+优先使用 Maven Central。GitHub Release 仍保留静态 Maven 仓库，用于内网镜像、离线试用或 CDN 分发：
 
 [compose-code-locator-0.1.1-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
 
@@ -305,6 +317,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 
 - GitHub 仓库：[nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
 - GitHub Release：[v0.1.1](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
+- Maven Central：已发布 `io.github.nianzixin:*:0.1.1`
 - Maven group：`io.github.nianzixin`
 - Gradle plugin id：`io.github.nianzixin.compose-locator`
 - Team convention plugin id：`io.github.nianzixin.team-compose-locator`
@@ -318,19 +331,20 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 - rollout 文档
 - public publishing 文档
 
-已经准备好发布自动化：
+发布状态：
 
-- Maven Central
-- Gradle Plugin Portal
-- JetBrains Marketplace
+- Maven Central：已完成
+- Gradle Plugin Portal：待配置凭据
+- JetBrains Marketplace：待首次手动创建插件条目并上传
 
-真正对外发布仍需要外部账号配置和凭据。见 [docs/public-publishing.md](docs/public-publishing.md)。
+剩余 Plugin Portal 和 Marketplace 步骤见 [docs/public-publishing.md](docs/public-publishing.md)。
 
 ## 后续工作
 
 - 在更大的生产 app 上运行 `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...`，并把报告纳入 CI 归档。
 - 为各团队自研 design-system 组件补充项目级回归 fixture。
-- 将 `build/composeLocator/release/maven` 和 `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip` 镜像到内部 Maven、官网 CDN 或正式发布平台。
+- 配置 Gradle Plugin Portal 凭据后发布 Gradle plugin IDs。
+- 将 Android Studio 插件 ZIP 提交到 JetBrains Marketplace，支持 IDE 内搜索安装和后续更新。
 - 在可用的 Android Studio SDK 分发环境下，将本地 ZIP task 替换为官方 IntelliJ Platform Gradle Plugin 打包发布链路。
 
 ## License

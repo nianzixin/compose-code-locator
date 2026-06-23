@@ -31,7 +31,7 @@ plugins {
 
 ## Immediate Website Publishing
 
-The current release archive already supports static Maven hosting.
+Maven Central is now the preferred public distribution channel. The release archive still supports static Maven hosting for internal mirrors, offline trials, or CDN-based distribution.
 
 ```bash
 ./gradlew --no-daemon verifyCodeLocator
@@ -76,9 +76,17 @@ dependencyResolutionManagement {
 
 ## Maven Central
 
-Use Central Portal with namespace `io.github.nianzixin`.
+Status: published for version `0.1.1`.
 
-Before publishing publicly:
+Public artifacts are available under:
+
+```text
+https://repo.maven.apache.org/maven2/io/github/nianzixin/
+```
+
+The Central Portal namespace is `io.github.nianzixin`.
+
+For future releases:
 
 - Create or choose the public GitHub repository. The build currently uses `https://github.com/nianzixin/compose-code-locator` in POM metadata.
 - Register and verify the `io.github.nianzixin` namespace in Central Portal.
@@ -131,6 +139,8 @@ Check deployment status:
 
 ## Gradle Plugin Portal
 
+Status: pending `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
+
 Publish these plugin IDs after ownership is ready:
 
 ```text
@@ -155,6 +165,8 @@ GRADLE_PUBLISH_KEY=... GRADLE_PUBLISH_SECRET=... \
 ```
 
 ## JetBrains Marketplace
+
+Status: pending first manual listing/upload.
 
 The Android Studio plugin ZIP is generated at:
 

@@ -47,7 +47,19 @@ Core principles:
 
 ## Quick Start
 
-Public coordinates use the GitHub namespace:
+Version `0.1.1` is available from Maven Central. Ensure `pluginManagement` can resolve plugin markers from Maven Central:
+
+```kotlin
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
+Apply the team convention plugin:
 
 ```kotlin
 plugins {
@@ -86,7 +98,7 @@ Normal debug integration does not require Application or Activity code changes. 
 
 ## Using The GitHub Release Maven Package
 
-Version `0.1.1` is not yet published to Maven Central or the Gradle Plugin Portal. To use the static Maven package from GitHub Release, download and unzip:
+Maven Central is the preferred distribution channel. The GitHub Release still contains a static Maven repository for internal mirrors, offline trials, or CDN-based distribution:
 
 [compose-code-locator-0.1.1-release.zip](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
 
@@ -305,6 +317,7 @@ Performance baseline:
 
 - GitHub repository: [nianzixin/compose-code-locator](https://github.com/nianzixin/compose-code-locator)
 - GitHub Release: [v0.1.1](https://github.com/nianzixin/compose-code-locator/releases/tag/v0.1.1)
+- Maven Central: published as `io.github.nianzixin:*:0.1.1`
 - Maven group: `io.github.nianzixin`
 - Gradle plugin id: `io.github.nianzixin.compose-locator`
 - Team convention plugin id: `io.github.nianzixin.team-compose-locator`
@@ -320,19 +333,20 @@ The current release ZIP includes:
 - `README.md`
 - `README-CN.md`
 
-Publishing automation is prepared for:
+Publishing automation status:
 
-- Maven Central
-- Gradle Plugin Portal
-- JetBrains Marketplace
+- Maven Central: completed
+- Gradle Plugin Portal: pending credentials
+- JetBrains Marketplace: pending first manual listing/upload
 
-Actual public publishing still requires external account setup and credentials. See [docs/public-publishing.md](docs/public-publishing.md).
+See [docs/public-publishing.md](docs/public-publishing.md) for the remaining Plugin Portal and Marketplace steps.
 
 ## Remaining Work
 
 - Run `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...` on a larger production app and archive the report in CI.
 - Add project-specific regression fixtures for each team's proprietary design-system components.
-- Mirror `build/composeLocator/release/maven` and `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip` to an internal Maven repository, public CDN, or official publishing platform.
+- Publish Gradle plugin IDs to the Gradle Plugin Portal after configuring portal credentials.
+- Submit the Android Studio plugin ZIP to JetBrains Marketplace for searchable IDE installation and updates.
 - Replace the local ZIP task with the official IntelliJ Platform Gradle Plugin packaging flow when a compatible Android Studio SDK distribution is available.
 
 ## License
