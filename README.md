@@ -336,16 +336,16 @@ The current release ZIP includes:
 Publishing automation status:
 
 - Maven Central: completed
-- Gradle Plugin Portal: pending credentials
+- Gradle Plugin Portal: submitted for Gradle approval; not publicly searchable until approved
 - JetBrains Marketplace: pending first manual listing/upload
 
-See [docs/public-publishing.md](docs/public-publishing.md) for the remaining Plugin Portal and Marketplace steps.
+See [docs/public-publishing.md](docs/public-publishing.md) for the remaining Plugin Portal approval and Marketplace steps.
 
 ## Remaining Work
 
 - Run `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...` on a larger production app and archive the report in CI.
 - Add project-specific regression fixtures for each team's proprietary design-system components.
-- Publish Gradle plugin IDs to the Gradle Plugin Portal after configuring portal credentials.
+- Wait for Gradle Plugin Portal approval, then verify the public plugin pages and Portal-only consumer resolution.
 - Submit the Android Studio plugin ZIP to JetBrains Marketplace for searchable IDE installation and updates.
 - Replace the local ZIP task with the official IntelliJ Platform Gradle Plugin packaging flow when a compatible Android Studio SDK distribution is available.
 

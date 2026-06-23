@@ -334,16 +334,16 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 发布状态：
 
 - Maven Central：已完成
-- Gradle Plugin Portal：待配置凭据
+- Gradle Plugin Portal：已提交 Gradle 官方审核，审核通过前不会公开可搜索
 - JetBrains Marketplace：待首次手动创建插件条目并上传
 
-剩余 Plugin Portal 和 Marketplace 步骤见 [docs/public-publishing.md](docs/public-publishing.md)。
+剩余 Plugin Portal 审核和 Marketplace 步骤见 [docs/public-publishing.md](docs/public-publishing.md)。
 
 ## 后续工作
 
 - 在更大的生产 app 上运行 `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...`，并把报告纳入 CI 归档。
 - 为各团队自研 design-system 组件补充项目级回归 fixture。
-- 配置 Gradle Plugin Portal 凭据后发布 Gradle plugin IDs。
+- 等待 Gradle Plugin Portal 审核通过，然后验证公开插件页和仅 Portal 仓库的消费者解析。
 - 将 Android Studio 插件 ZIP 提交到 JetBrains Marketplace，支持 IDE 内搜索安装和后续更新。
 - 在可用的 Android Studio SDK 分发环境下，将本地 ZIP task 替换为官方 IntelliJ Platform Gradle Plugin 打包发布链路。
 

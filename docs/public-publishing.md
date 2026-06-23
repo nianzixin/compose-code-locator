@@ -139,9 +139,9 @@ Check deployment status:
 
 ## Gradle Plugin Portal
 
-Status: pending `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
+Status: submitted for Gradle approval. The `publishPlugins` task completed successfully and Gradle reported that `io.github.nianzixin.compose-locator` was submitted for engineer approval. The plugin pages and Portal-only marker coordinates will remain unavailable until Gradle approves the first publication.
 
-Publish these plugin IDs after ownership is ready:
+Submitted plugin IDs:
 
 ```text
 io.github.nianzixin.compose-locator
@@ -163,6 +163,15 @@ Publish:
 GRADLE_PUBLISH_KEY=... GRADLE_PUBLISH_SECRET=... \
   ./gradlew --no-daemon publishComposeLocatorGradlePlugins
 ```
+
+After approval, verify both public pages:
+
+```text
+https://plugins.gradle.org/plugin/io.github.nianzixin.compose-locator
+https://plugins.gradle.org/plugin/io.github.nianzixin.team-compose-locator
+```
+
+Also verify a consumer project that uses only `gradlePluginPortal()` in `pluginManagement.repositories`. Until approval completes, use the Maven Central setup shown above, which includes `mavenCentral()` in `pluginManagement`.
 
 ## JetBrains Marketplace
 
