@@ -229,9 +229,9 @@ private fun verifyForegroundPackageParsing() {
     }
 
     val windowOnly = """
-        mCurrentFocus=Window{61c136d u0 com.soyoung.clinic.pad/com.soyoung.clinic.pad.ui.TriageActivity}
+        mCurrentFocus=Window{61c136d u0 com.example.enterprise.pad/com.example.enterprise.pad.ui.SampleActivity}
     """.trimIndent()
-    check(ForegroundPackageResolver.parse(windowOnly) == "com.soyoung.clinic.pad") {
+    check(ForegroundPackageResolver.parse(windowOnly) == "com.example.enterprise.pad") {
         "Expected foreground package to be parsed from focused window"
     }
 }
@@ -250,12 +250,12 @@ private fun verifyDeviceScopedForwardPorts() {
 private fun verifyForwarderClearsStaleMapping() {
     val runner = RecordingAdbRunner()
     val device = DeviceDescriptor(serial = "PAD1234567890", localPort = 49444)
-    AdbPortForwarder(runner).forwardLocalAbstract(device, "com.soyoung.clinic.pad")
+    AdbPortForwarder(runner).forwardLocalAbstract(device, "com.example.enterprise.pad")
     AdbPortForwarder(runner).forwardTcp(device)
     check(
         runner.commands == listOf(
             listOf("-s", "PAD1234567890", "forward", "--remove", "tcp:49444"),
-            listOf("-s", "PAD1234567890", "forward", "tcp:49444", "localabstract:codelocator.com.soyoung.clinic.pad"),
+            listOf("-s", "PAD1234567890", "forward", "tcp:49444", "localabstract:codelocator.com.example.enterprise.pad"),
             listOf("-s", "PAD1234567890", "forward", "--remove", "tcp:49444"),
             listOf("-s", "PAD1234567890", "forward", "tcp:49444", "tcp:49391"),
         ),

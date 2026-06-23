@@ -78,15 +78,15 @@
   - metadata encode/decode: about 100 ms
   - 80 AAR metadata extractions: about 1315 ms
   - runtime 20k-node / 2000-query hit-test batch: about 122 ms
-- Real `ClinicTreatmentPad` trial builds successfully after the sourceId/index architecture update.
-- `ClinicTreatmentPad` generated 1252 source-identity-only Studio index entries.
-- `ClinicTreatmentPad` verified 570 compiler-injected source IDs after a forced Kotlin compile.
-- `ClinicTreatmentPad` debug APK does not contain legacy compose-locator metadata/source-catalog entries.
-- `ClinicTreatmentPad` was installed and launched on device `L2E0222127015908`; `/health` returned `sourceCount=0`, `nodeCount=20`, and `activeActivities=1`.
-- `ClinicTreatmentPad` hit-test returned runtime `sourceId` values that resolved through the local Studio index to `LoginActivity.kt:242`, `LoginActivity.kt:247`, `LoginActivity.kt:249`, and `LoginActivity.kt:256`.
-- Manual Android Studio UI verification is complete: installing the regenerated plugin ZIP and clicking real `ClinicTreatmentPad` screenshot elements can jump to source.
+- A private pilot app trial builds successfully after the sourceId/index architecture update.
+- The private pilot app generated 1252 source-identity-only Studio index entries.
+- The private pilot app verified 570 compiler-injected source IDs after a forced Kotlin compile.
+- The private pilot app debug APK does not contain legacy compose-locator metadata/source-catalog entries.
+- The private pilot app was installed and launched on a connected device; `/health` returned `sourceCount=0`, `nodeCount=20`, and `activeActivities=1`.
+- The private pilot app hit-test returned runtime `sourceId` values that resolved through the local Studio index to private app source files.
+- Manual Android Studio UI verification is complete: installing the regenerated plugin ZIP and clicking private pilot app screenshot elements can jump to source.
 - Device check on Pad `983d2183` verified the new runtime still returns `/health` with `sourceCount=0` and active runtime nodes.
-- Device check verified app-scoped forwarding to `localabstract:codelocator.dev.codelocator.demo` while `com.soyoung.clinic.pad` was also alive in the background.
+- Device check verified app-scoped forwarding to `localabstract:codelocator.dev.codelocator.demo` while another sample package was also alive in the background.
 - Device check on Pad `983d2183` verified Popup, DropdownMenu, and Dialog/AlertDialog as independent top-window roots.
 - DropdownMenu opened as `windowLayer=3` with source-backed nodes resolving to `DemoApp.kt:243` and `DemoApp.kt:248`; hit-test at menu item centers returned top-window candidates before underlay nodes.
 - Dialog opened as `windowLayer=3` with source-backed Button semantics; hit-test on dialog buttons returned top-window Button candidates before underlay nodes.

@@ -287,9 +287,9 @@ The current workspace has passed:
 - release APK boundary verification
 - source identity stability across app restarts
 
-Real project trial:
+Private pilot app trial:
 
-- `ClinicTreatmentPad` built successfully after integration.
+- A private pilot app built successfully after integration.
 - After the sourceId/index architecture update, it generated 1252 source-identity-only Studio index entries.
 - A forced Kotlin compile verified 570 compiler-injected source IDs.
 - Its debug APK did not contain legacy compose-locator metadata or source-catalog entries.

@@ -287,9 +287,9 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 - release APK boundary 验证
 - source identity 跨 app 重启稳定性验证
 
-已做过的真实工程试点：
+已做过的私有工程试点：
 
-- `ClinicTreatmentPad` 接入后可成功构建。
+- 一个私有试点 app 接入后可成功构建。
 - sourceId/index 架构更新后生成 1252 条 source-identity-only Studio index entries。
 - forced Kotlin compile 后验证 570 个 compiler-injected source IDs。
 - debug APK 未包含 legacy compose-locator metadata/source-catalog entries。
