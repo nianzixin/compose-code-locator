@@ -90,6 +90,15 @@ tasks.register("verifyStudioPluginPackaging") {
         check("META-INF/plugin.xml" in pluginEntries) {
             "Plugin jar is missing META-INF/plugin.xml: ${pluginJar.absolutePath}"
         }
+        val pluginXml = ZipFile(pluginJar).use { zip ->
+            zip.getInputStream(zip.getEntry("META-INF/plugin.xml")).bufferedReader().use { it.readText() }
+        }
+        check("<version>${project.version}</version>" in pluginXml) {
+            "Marketplace plugin descriptor is missing <version>${project.version}</version>"
+        }
+        check("<idea-version " in pluginXml && "since-build=" in pluginXml) {
+            "Marketplace plugin descriptor is missing <idea-version since-build=...>"
+        }
         println("Studio plugin ZIP packaging verified at ${zipFile.absolutePath}")
     }
 }

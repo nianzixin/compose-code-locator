@@ -2765,6 +2765,12 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
         check("nianzixin" in pluginXmlText && "https://github.com/nianzixin/compose-code-locator" in pluginXmlText) {
             "Marketplace plugin vendor/description must reference the public project in ${pluginXml.absolutePath}"
         }
+        check("<version>$version</version>" in pluginXmlText) {
+            "Marketplace plugin descriptor must declare version $version in ${pluginXml.absolutePath}"
+        }
+        check("<idea-version " in pluginXmlText && "since-build=" in pluginXmlText) {
+            "Marketplace plugin descriptor must declare idea-version in ${pluginXml.absolutePath}"
+        }
         val pluginZip = project(":studio-plugin").layout.buildDirectory
             .file("distributions/compose-code-locator-$version.zip")
             .get()
