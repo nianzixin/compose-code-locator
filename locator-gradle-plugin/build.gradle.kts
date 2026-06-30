@@ -56,6 +56,17 @@ tasks.register<JavaExec>("benchmarkComposeLocatorPerformance") {
     classpath = sourceSets.named("main").get().runtimeClasspath
     mainClass.set("dev.codelocator.gradle.benchmark.ComposeLocatorPerformanceBenchmarkKt")
     args(layout.buildDirectory.dir("benchmarks/compose-locator-performance").get().asFile.absolutePath)
+    listOf(
+        "codelocator.performance.maxScanMs",
+        "codelocator.performance.maxMetadataMs",
+        "codelocator.performance.maxExtractionMs",
+    ).forEach { propertyName ->
+        val value = providers.systemProperty(propertyName)
+            .orElse(providers.gradleProperty(propertyName))
+        if (value.isPresent) {
+            systemProperty(propertyName, value.get())
+        }
+    }
 }
 
 publishing {
