@@ -140,14 +140,14 @@ Build the plugin ZIP:
 Output:
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.3.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.4.zip
 ```
 
 Install it from Android Studio:
 
 1. Open `Settings | Plugins`.
 2. Choose `Install Plugin from Disk...`.
-3. Select `compose-code-locator-0.1.3.zip`.
+3. Select `compose-code-locator-0.1.4.zip`.
 4. Restart Android Studio.
 5. Open an Android project that has integrated the Gradle plugin, run the debug app, capture a screenshot in the tool window, and click a UI element to navigate to source.
 
@@ -337,7 +337,7 @@ Publishing automation status:
 
 - Maven Central: completed
 - Gradle Plugin Portal: published
-- JetBrains Marketplace: published; Studio plugin 0.1.3 targets IntelliJ Platform build range 241-253.*
+- JetBrains Marketplace: listing published; Studio plugin 0.1.4 targets IntelliJ Platform build range 241-261.* and is ready for Marketplace upload/review.
 
 See [docs/public-publishing.md](docs/public-publishing.md) for Marketplace update and release artifact steps.
 

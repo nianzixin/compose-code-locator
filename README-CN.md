@@ -140,14 +140,14 @@ maven("/absolute/path/to/compose-code-locator-0.1.1/maven")
 产物位置：
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.3.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.4.zip
 ```
 
 安装方式：
 
 1. Android Studio 打开 `Settings | Plugins`。
 2. 选择 `Install Plugin from Disk...`。
-3. 选择上面的 `compose-code-locator-0.1.3.zip`。
+3. 选择上面的 `compose-code-locator-0.1.4.zip`。
 4. 重启 Android Studio。
 5. 打开接入了插件的 Android 工程，运行 debug app，使用工具窗口抓取截图并点击元素定位源码。
 
@@ -335,7 +335,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 
 - Maven Central：已完成
 - Gradle Plugin Portal：已发布
-- JetBrains Marketplace：已发布；Studio 插件 0.1.3 目标兼容 IntelliJ Platform build range 241-253.*
+- JetBrains Marketplace：插件页已发布；Studio 插件 0.1.4 目标兼容 IntelliJ Platform build range 241-261.*，已准备好上传审核。
 
 Marketplace 更新和发布产物步骤见 [docs/public-publishing.md](docs/public-publishing.md)。
 

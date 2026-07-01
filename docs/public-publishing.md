@@ -180,7 +180,7 @@ Status: Marketplace listing exists. Upload Studio plugin updates manually from t
 The Android Studio plugin ZIP is generated at:
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.3.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.4.zip
 ```
 
 Current Marketplace plugin id:
@@ -192,14 +192,14 @@ io.github.nianzixin.compose-code-locator
 Current Marketplace version target:
 
 ```text
-0.1.3
+0.1.4
 ```
 
 Current declared compatibility range:
 
 ```text
 since-build=241
-until-build=253.*
+until-build=261.*
 ```
 
 Before uploading a wider range, run:

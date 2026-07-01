@@ -53,7 +53,7 @@ No business UI code should call `.locatorNode(...)`, add artificial `testTag`, i
 | Kotlin 2.1.x+ | Requires validation | Compiler plugin APIs can shift. Add one CI lane before upgrading Kotlin. |
 | Compose UI 1.5+ | Expected supported | Runtime collection uses Compose layout/modifier metadata and should be validated against the team's Compose BOM. |
 | Compose UI 1.7.0 | Verified baseline | Demo and device regression use Compose UI/Foundation 1.7.0 and Material3 1.3.0. |
-| Android Studio 2024.1+ | Marketplace supported | Studio plugin 0.1.3 declares IntelliJ Platform build range 241-253.*. Run `verifyStudioPluginWithPluginVerifier` before widening this range further. |
+| Android Studio 2024.1+ | Marketplace supported | Studio plugin 0.1.4 declares IntelliJ Platform build range 241-261.*. Run `verifyStudioPluginWithPluginVerifier` before widening this range further. |
 
 ## CI Gates
 
