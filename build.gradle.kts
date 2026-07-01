@@ -2756,7 +2756,7 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
     dependsOn(":studio-plugin:verifyStudioPluginPackaging")
 
     doLast {
-        val version = project.version.toString()
+        val version = project(":studio-plugin").version.toString()
         val pluginXml = project(":studio-plugin").file("src/main/resources/META-INF/plugin.xml")
         val pluginXmlText = pluginXml.readText()
         check("<id>io.github.nianzixin.compose-code-locator</id>" in pluginXmlText) {
