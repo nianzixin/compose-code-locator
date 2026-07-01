@@ -29,7 +29,7 @@ The package is written to:
 ```text
 build/composeLocator/release/
   maven/
-  studio-plugin/compose-code-locator-0.1.1.zip
+  studio-plugin/compose-code-locator-<studio-plugin-version>.zip
   README.md
   README-CN.md
   docs/
@@ -83,7 +83,7 @@ dependencyResolutionManagement {
 }
 ```
 
-For team rollout, mirror `build/composeLocator/release/maven` into the internal Maven repository and install `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip` through Android Studio's local plugin installation flow. Publish `release-checksums.sha256` with the mirrored package so teams can verify staged Maven artifacts and the Studio plugin ZIP after transfer.
+For team rollout, mirror `build/composeLocator/release/maven` into the internal Maven repository and install the ZIP under `build/composeLocator/release/studio-plugin/` through Android Studio's local plugin installation flow. Publish `release-checksums.sha256` with the mirrored package so teams can verify staged Maven artifacts and the Studio plugin ZIP after transfer.
 
 ## Release Gates
 
@@ -99,6 +99,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 ./gradlew verifyComposeLocatorReleaseConsumer
 ./gradlew verifyComposeLocatorReleasePackage
 ./gradlew verifyComposeLocatorWindowRootPolicy
+./gradlew verifyStudioPluginWithPluginVerifier
 ```
 
 For a target app, also run:
@@ -119,7 +120,7 @@ Public release readiness is checked with:
 ./gradlew verifyComposeLocatorPublicPublishingReadiness
 ```
 
-Credential-dependent public publishing is driven by `.github/workflows/publish.yml`. Maven Central upload requires GPG signing plus Central Portal credentials. Gradle Plugin Portal publishing requires `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`. JetBrains Marketplace first publication remains manual per JetBrains Marketplace policy; the workflow uploads the Studio plugin ZIP as a release artifact for review.
+Credential-dependent public publishing is driven by `.github/workflows/publish.yml`. Maven Central upload requires GPG signing plus Central Portal credentials. Gradle Plugin Portal publishing requires `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`. JetBrains Marketplace uploads remain manual in this project; the workflow uploads the Studio plugin ZIP as a release artifact for review, and `verifyStudioPluginWithPluginVerifier` provides the local Plugin Verifier gate before widening Marketplace compatibility. Multi-version verification requires local IDE directories for each target range.
 
 ## Versioning Rules
 

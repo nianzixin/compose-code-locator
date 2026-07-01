@@ -47,7 +47,7 @@ For a website/CDN release, unzip it and host:
 
 ```text
 maven/                                      -> https://your-domain.example/compose-locator/maven/
-studio-plugin/compose-code-locator-0.1.1.zip -> https://your-domain.example/compose-locator/download/
+studio-plugin/compose-code-locator-<studio-plugin-version>.zip -> https://your-domain.example/compose-locator/download/
 README.md
 release-manifest.txt
 release-checksums.sha256
@@ -139,9 +139,9 @@ Check deployment status:
 
 ## Gradle Plugin Portal
 
-Status: submitted for Gradle approval. The `publishPlugins` task completed successfully and Gradle reported that `io.github.nianzixin.compose-locator` was submitted for engineer approval. The plugin pages and Portal-only marker coordinates will remain unavailable until Gradle approves the first publication.
+Status: published. The plugin IDs below are available from the Gradle Plugin Portal.
 
-Submitted plugin IDs:
+Published plugin IDs:
 
 ```text
 io.github.nianzixin.compose-locator
@@ -175,12 +175,12 @@ Also verify a consumer project that uses only `gradlePluginPortal()` in `pluginM
 
 ## JetBrains Marketplace
 
-Status: pending first manual listing/upload.
+Status: Marketplace listing exists. Upload Studio plugin updates manually from the JetBrains Marketplace edit page.
 
 The Android Studio plugin ZIP is generated at:
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.1.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.3.zip
 ```
 
 Current Marketplace plugin id:
@@ -189,9 +189,27 @@ Current Marketplace plugin id:
 io.github.nianzixin.compose-code-locator
 ```
 
-Official JetBrains Marketplace documentation requires the first plugin publication to be uploaded manually. Create the listing at JetBrains Marketplace, upload the ZIP above, and wait for review.
+Current Marketplace version target:
 
-After the first manual upload exists, token-based publishing can be wired through the official IntelliJ Platform Gradle Plugin. Until this project migrates the custom local ZIP task to that plugin, the CI workflow uploads the Marketplace ZIP as an artifact for manual submission instead of calling an unsupported API.
+```text
+0.1.3
+```
+
+Current declared compatibility range:
+
+```text
+since-build=241
+until-build=253.*
+```
+
+Before uploading a wider range, run:
+
+```bash
+./gradlew --no-daemon verifyComposeLocatorMarketplacePackage
+./gradlew --no-daemon verifyStudioPluginWithPluginVerifier
+```
+
+Token-based publishing can be wired later through the official IntelliJ Platform Gradle Plugin. Until this project migrates the custom local ZIP task to that plugin, the CI workflow uploads the Marketplace ZIP as an artifact for manual submission instead of calling an unsupported API.
 
 ## GitHub Actions
 

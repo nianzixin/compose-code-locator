@@ -53,7 +53,7 @@ No business UI code should call `.locatorNode(...)`, add artificial `testTag`, i
 | Kotlin 2.1.x+ | Requires validation | Compiler plugin APIs can shift. Add one CI lane before upgrading Kotlin. |
 | Compose UI 1.5+ | Expected supported | Runtime collection uses Compose layout/modifier metadata and should be validated against the team's Compose BOM. |
 | Compose UI 1.7.0 | Verified baseline | Demo and device regression use Compose UI/Foundation 1.7.0 and Material3 1.3.0. |
-| Android Studio 2025.x | Local ZIP supported | Current project builds a local plugin ZIP. Official IntelliJ Platform packaging is still a packaging-track item. |
+| Android Studio 2024.1+ | Marketplace supported | Studio plugin 0.1.3 declares IntelliJ Platform build range 241-253.*. Run `verifyStudioPluginWithPluginVerifier` before widening this range further. |
 
 ## CI Gates
 
@@ -73,11 +73,24 @@ The optional `.github/workflows/compose-locator-compatibility.yml` workflow defi
 ./gradlew verifyComposeLocatorReleasePackage
 ```
 
-This release gate stages and verifies the internal Maven artifacts, Gradle plugin marker artifacts, Android Studio plugin ZIP, release manifest, and SHA-256 checksum manifest. Mirror `build/composeLocator/release/maven`, `build/composeLocator/release/studio-plugin/compose-code-locator-0.1.1.zip`, and `build/composeLocator/release/release-checksums.sha256` to the team's internal distribution channel.
+This release gate stages and verifies the internal Maven artifacts, Gradle plugin marker artifacts, Android Studio plugin ZIP, release manifest, and SHA-256 checksum manifest. Mirror `build/composeLocator/release/maven`, the Studio plugin ZIP under `build/composeLocator/release/studio-plugin/`, and `build/composeLocator/release/release-checksums.sha256` to the team's internal distribution channel.
 
 The staged release also includes `README.md`, `README-CN.md`, `docs/team-rollout.md`, `docs/release-engineering.md`, and `docs/compatibility-matrix.json` so the internal package can be distributed as a self-contained onboarding bundle.
 
 Use `./gradlew verifyComposeLocatorReleaseArchive` when the team wants a single uploadable artifact. It verifies `build/composeLocator/compose-code-locator-0.1.1-release.zip` contains the staged Maven repository, Studio plugin ZIP, docs, release manifest, and checksum file.
+
+Before publishing a wider Marketplace range, run the Studio verifier against at least the locally installed Android Studio:
+
+```bash
+./gradlew verifyStudioPluginWithPluginVerifier
+```
+
+For extra IDE targets, pass local IDE paths:
+
+```bash
+./gradlew verifyStudioPluginWithPluginVerifier \
+  -Pcodelocator.studio.verifier.idePaths=/Applications/Android\ Studio.app/Contents
+```
 
 ```bash
 CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice

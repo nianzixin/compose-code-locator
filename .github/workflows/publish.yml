@@ -53,6 +53,9 @@ jobs:
       - name: Verify readiness
         run: ./gradlew --no-daemon verifyComposeLocatorPublicPublishingReadiness -Pcodelocator.studio.useStubs=true
 
+      - name: Verify Studio plugin package metadata
+        run: ./gradlew --no-daemon verifyComposeLocatorMarketplacePackage -Pcodelocator.studio.useStubs=true
+
       - name: Upload readiness report
         if: always()
         uses: actions/upload-artifact@v4

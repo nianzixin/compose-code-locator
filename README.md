@@ -140,14 +140,14 @@ Build the plugin ZIP:
 Output:
 
 ```text
-studio-plugin/build/distributions/compose-code-locator-0.1.1.zip
+studio-plugin/build/distributions/compose-code-locator-0.1.3.zip
 ```
 
 Install it from Android Studio:
 
 1. Open `Settings | Plugins`.
 2. Choose `Install Plugin from Disk...`.
-3. Select `compose-code-locator-0.1.1.zip`.
+3. Select `compose-code-locator-0.1.3.zip`.
 4. Restart Android Studio.
 5. Open an Android project that has integrated the Gradle plugin, run the debug app, capture a screenshot in the tool window, and click a UI element to navigate to source.
 
@@ -336,17 +336,17 @@ The current release ZIP includes:
 Publishing automation status:
 
 - Maven Central: completed
-- Gradle Plugin Portal: submitted for Gradle approval; not publicly searchable until approved
-- JetBrains Marketplace: pending first manual listing/upload
+- Gradle Plugin Portal: published
+- JetBrains Marketplace: published; Studio plugin 0.1.3 targets IntelliJ Platform build range 241-253.*
 
-See [docs/public-publishing.md](docs/public-publishing.md) for the remaining Plugin Portal approval and Marketplace steps.
+See [docs/public-publishing.md](docs/public-publishing.md) for Marketplace update and release artifact steps.
 
 ## Remaining Work
 
 - Run `generateComposeLocatorRolloutReport -Pcodelocator.rollout.modules=...` on a larger production app and archive the report in CI.
 - Add project-specific regression fixtures for each team's proprietary design-system components.
-- Wait for Gradle Plugin Portal approval, then verify the public plugin pages and Portal-only consumer resolution.
-- Submit the Android Studio plugin ZIP to JetBrains Marketplace for searchable IDE installation and updates.
+- Run JetBrains Plugin Verifier before each widened Android Studio compatibility update.
+- Upload new Android Studio plugin ZIP versions to JetBrains Marketplace for IDE installation and updates.
 - Replace the local ZIP task with the official IntelliJ Platform Gradle Plugin packaging flow when a compatible Android Studio SDK distribution is available.
 
 ## License

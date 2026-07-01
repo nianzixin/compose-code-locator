@@ -30,6 +30,15 @@ allprojects {
     version = "0.1.1"
 }
 
+val studioPluginVerifierCli by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+dependencies {
+    studioPluginVerifierCli("org.jetbrains.intellij.plugins:verifier-cli:1.407:all")
+}
+
 tasks.register("printModules") {
     doLast {
         println("Modules: locator-runtime, locator-runtime-android, studio-plugin, demo-app")
@@ -1494,6 +1503,12 @@ fun extractVersion(script: String, pattern: Regex): String {
         ?: throw GradleException("Unable to extract version with pattern $pattern")
 }
 
+fun Project.studioPluginVersion(): String = project(":studio-plugin").version.toString()
+
+fun Project.studioPluginZipName(): String = "compose-code-locator-${studioPluginVersion()}.zip"
+
+fun Project.studioPluginJarEntry(): String = "compose-code-locator/lib/studio-plugin-${studioPluginVersion()}.jar"
+
 data class ComposeLocatorRolloutModuleReport(
     val modulePath: String,
     val sourceMapEntries: Int,
@@ -1822,6 +1837,8 @@ tasks.register("verifyComposeLocatorCompatibilityMatrix") {
 
         val rootBuild = file("build.gradle.kts").readText()
         val demoBuild = file("demo-app/build.gradle.kts").readText()
+        val studioPluginBuild = file("studio-plugin/build.gradle.kts").readText()
+        val studioPluginXml = file("studio-plugin/src/main/resources/META-INF/plugin.xml").readText()
         val wrapper = file("gradle/wrapper/gradle-wrapper.properties").readText()
         val matrixFile = file("docs/compatibility-matrix.json")
         check(matrixFile.isFile) {
@@ -1839,6 +1856,13 @@ tasks.register("verifyComposeLocatorCompatibilityMatrix") {
         val agpVersion = extractVersion(rootBuild, Regex("""id\("com\.android\.application"\) version "([^"]+)""""))
         val composeUiVersion = extractVersion(demoBuild, Regex("""androidx\.compose\.ui:ui:([^"]+)""""))
         val material3Version = extractVersion(demoBuild, Regex("""androidx\.compose\.material3:material3:([^"]+)""""))
+        val studioPluginVersion = extractVersion(studioPluginBuild, Regex("""version\s*=\s*"([^"]+)""""))
+        val studioPluginXmlVersion = extractVersion(studioPluginXml, Regex("""<version>([^<]+)</version>"""))
+        val studioPluginSinceBuild = extractVersion(studioPluginXml, Regex("""since-build="([^"]+)""""))
+        val studioPluginUntilBuild = extractVersion(studioPluginXml, Regex("""until-build="([^"]+)""""))
+        check(studioPluginXmlVersion == studioPluginVersion) {
+            "Studio plugin build version $studioPluginVersion does not match plugin.xml version $studioPluginXmlVersion"
+        }
 
         val actual = mapOf(
             "gradle" to gradleVersion,
@@ -1847,6 +1871,9 @@ tasks.register("verifyComposeLocatorCompatibilityMatrix") {
             "composeCompilerPlugin" to composeCompilerPluginVersion,
             "composeUi" to composeUiVersion,
             "material3" to material3Version,
+            "studioPluginVersion" to studioPluginVersion,
+            "studioPluginSinceBuild" to studioPluginSinceBuild,
+            "studioPluginUntilBuild" to studioPluginUntilBuild,
         )
         actual.forEach { (key, value) ->
             val expected = jsonValue(matrix, key)
@@ -1881,6 +1908,9 @@ tasks.register("verifyComposeLocatorCompatibilityMatrix") {
         val workflowText = compatibilityWorkflow.readText()
         val requiredWorkflowSnippets = listOf(
             "actions/upload-artifact@v4",
+            "verify_studio_plugin:",
+            "verifyStudioPluginWithPluginVerifier",
+            "compose-code-locator-studio-plugin-verifier",
             "compose-locator-compatibility-gradle-\${{ matrix.gradle }}-agp-\${{ matrix.agp }}-kotlin-\${{ matrix.kotlin }}",
             "build/reports/composeLocator/**",
             "demo-app/build/intermediates/composeLocator/**",
@@ -1991,6 +2021,7 @@ tasks.register("verifyComposeLocatorPublishWorkflow") {
             "inputs.publish_gradle_plugin_portal == true || inputs.publish_gradle_plugin_portal == 'true'",
             "inputs.upload_marketplace_artifact == true || inputs.upload_marketplace_artifact == 'true'",
             "./gradlew --no-daemon verifyComposeLocatorPublicPublishingReadiness",
+            "./gradlew --no-daemon verifyComposeLocatorMarketplacePackage",
             "-Pcodelocator.studio.useStubs=true",
             "SIGNING_KEY",
             "CENTRAL_PORTAL_TOKEN",
@@ -2178,13 +2209,14 @@ tasks.register("stageComposeLocatorRelease") {
     )
 
     val releaseDir = layout.buildDirectory.dir("composeLocator/release")
-    val pluginZip = project(":studio-plugin").layout.buildDirectory.file("distributions/compose-code-locator-${project.version}.zip")
+    val pluginZipName = studioPluginZipName()
+    val pluginZip = project(":studio-plugin").layout.buildDirectory.file("distributions/$pluginZipName")
     val manifestFile = releaseDir.map { it.file("release-manifest.txt") }
     val checksumsFile = releaseDir.map { it.file("release-checksums.sha256") }
     val quickStartFile = releaseDir.map { it.file("README.md") }
     val chineseReadmeFile = releaseDir.map { it.file("README-CN.md") }
 
-    outputs.file(releaseDir.map { it.file("studio-plugin/compose-code-locator-${project.version}.zip") })
+    outputs.file(releaseDir.map { it.file("studio-plugin/$pluginZipName") })
     outputs.file(quickStartFile)
     outputs.file(chineseReadmeFile)
     outputs.file(releaseDir.map { it.file("docs/team-rollout.md") })
@@ -2199,6 +2231,7 @@ tasks.register("stageComposeLocatorRelease") {
         val releaseRoot = releaseDir.get().asFile
         val mavenRoot = releaseRoot.resolve("maven")
         mavenRoot.resolve("dev").deleteRecursively()
+        releaseRoot.resolve("studio-plugin").deleteRecursively()
         val manifest = manifestFile.get().asFile
         manifest.parentFile.mkdirs()
         manifest.writeText(
@@ -2217,7 +2250,7 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine("  io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:${project.version}")
                 appendLine()
                 appendLine("Android Studio plugin ZIP:")
-                appendLine("  studio-plugin/compose-code-locator-${project.version}.zip")
+                appendLine("  studio-plugin/$pluginZipName")
                 appendLine()
                 appendLine("Documentation:")
                 appendLine("  README.md")
@@ -2239,7 +2272,7 @@ tasks.register("stageComposeLocatorRelease") {
             },
         )
 
-        val stagedPluginZip = releaseRoot.resolve("studio-plugin/compose-code-locator-${project.version}.zip")
+        val stagedPluginZip = releaseRoot.resolve("studio-plugin/$pluginZipName")
         stagedPluginZip.parentFile.mkdirs()
         pluginZip.get().asFile.copyTo(stagedPluginZip, overwrite = true)
 
@@ -2252,7 +2285,7 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine("## Package Contents")
                 appendLine()
                 appendLine("- `maven/`: Maven artifacts and Gradle plugin marker artifacts for static Maven hosting.")
-                appendLine("- `studio-plugin/compose-code-locator-${project.version}.zip`: Android Studio plugin ZIP.")
+                appendLine("- `studio-plugin/$pluginZipName`: Android Studio plugin ZIP.")
                 appendLine("- `README.md`: release quick start.")
                 appendLine("- `README-CN.md`: Chinese project README and architecture overview.")
                 appendLine("- `docs/team-rollout.md`: team rollout guide and CI gates.")
@@ -2297,7 +2330,7 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine()
                 appendLine("## Studio Integration")
                 appendLine()
-                appendLine("Install `studio-plugin/compose-code-locator-${project.version}.zip` from Android Studio's local plugin installation flow, then restart Android Studio.")
+                appendLine("Install `studio-plugin/$pluginZipName` from Android Studio's local plugin installation flow, then restart Android Studio.")
                 appendLine()
                 appendLine("## Required Gates")
                 appendLine()
@@ -2356,6 +2389,9 @@ tasks.register("verifyComposeLocatorReleasePackage") {
         val releaseDir = layout.buildDirectory.dir("composeLocator/release").get().asFile
         val mavenRoot = releaseDir.resolve("maven")
         val version = project.version.toString()
+        val studioPluginVersionValue = studioPluginVersion()
+        val studioPluginZipName = studioPluginZipName()
+        val studioPluginJarEntry = studioPluginJarEntry()
         val required = listOf(
             "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version.pom",
             "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version.jar",
@@ -2401,15 +2437,23 @@ tasks.register("verifyComposeLocatorReleasePackage") {
             markerArtifact = "io.github.nianzixin.team-compose-locator.gradle.plugin",
         )
 
-        val pluginZip = releaseDir.resolve("studio-plugin/compose-code-locator-$version.zip")
+        val pluginZip = releaseDir.resolve("studio-plugin/$studioPluginZipName")
         check(pluginZip.isFile) {
             "Missing staged Android Studio plugin ZIP: ${pluginZip.absolutePath}"
+        }
+        val studioPluginZips = releaseDir.resolve("studio-plugin")
+            .listFiles { file -> file.isFile && file.name.endsWith(".zip") }
+            ?.map { it.name }
+            ?.sorted()
+            .orEmpty()
+        check(studioPluginZips == listOf(studioPluginZipName)) {
+            "Staged release must contain only the current Studio plugin ZIP $studioPluginZipName, found: $studioPluginZips"
         }
         val pluginEntries = ZipFile(pluginZip).use { zip ->
             zip.entries().asSequence().map { it.name }.toSet()
         }
-        check("compose-code-locator/lib/studio-plugin-$version.jar" in pluginEntries) {
-            "Staged Studio plugin ZIP is missing studio-plugin-$version.jar"
+        check(studioPluginJarEntry in pluginEntries) {
+            "Staged Studio plugin ZIP is missing $studioPluginJarEntry"
         }
         val manifest = releaseDir.resolve("release-manifest.txt")
         val manifestText = manifest.takeIf(File::isFile)?.readText().orEmpty()
@@ -2429,7 +2473,7 @@ tasks.register("verifyComposeLocatorReleasePackage") {
         val quickStartText = quickStart.takeIf(File::isFile)?.readText().orEmpty()
         check(
             "io.github.nianzixin.team-compose-locator" in quickStartText &&
-                "studio-plugin/compose-code-locator-$version.zip" in quickStartText &&
+                "studio-plugin/$studioPluginZipName" in quickStartText &&
                 "README-CN.md" in quickStartText &&
                 "docs/public-publishing.md" in quickStartText &&
                 "verifyCodeLocator" in quickStartText &&
@@ -2460,6 +2504,7 @@ tasks.register("verifyComposeLocatorReleasePackage") {
         check(
             """"gradle": "8.7"""" in compatibilityMatrixText &&
                 """"androidGradlePlugin": "8.6.1"""" in compatibilityMatrixText &&
+                """"studioPluginVersion": "$studioPluginVersionValue"""" in compatibilityMatrixText &&
                 """"requiredGates"""" in compatibilityMatrixText &&
                 """"ciMatrix"""" in compatibilityMatrixText,
         ) {
@@ -2517,6 +2562,7 @@ tasks.register("verifyComposeLocatorReleaseArchive") {
 
     doLast {
         val version = project.version.toString()
+        val studioPluginZipName = studioPluginZipName()
         val archive = layout.buildDirectory.file("composeLocator/compose-code-locator-$version-release.zip").get().asFile
         check(archive.isFile) {
             "Missing Compose Locator release archive: ${archive.absolutePath}"
@@ -2530,7 +2576,7 @@ tasks.register("verifyComposeLocatorReleaseArchive") {
             "${prefix}README-CN.md",
             "${prefix}release-manifest.txt",
             "${prefix}release-checksums.sha256",
-            "${prefix}studio-plugin/compose-code-locator-$version.zip",
+            "${prefix}studio-plugin/$studioPluginZipName",
             "${prefix}docs/team-rollout.md",
             "${prefix}docs/release-engineering.md",
             "${prefix}docs/public-publishing.md",
@@ -2757,6 +2803,8 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
 
     doLast {
         val version = project(":studio-plugin").version.toString()
+        val expectedSinceBuild = "241"
+        val expectedUntilBuild = "253.*"
         val pluginXml = project(":studio-plugin").file("src/main/resources/META-INF/plugin.xml")
         val pluginXmlText = pluginXml.readText()
         check("<id>io.github.nianzixin.compose-code-locator</id>" in pluginXmlText) {
@@ -2771,6 +2819,9 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
         check("<idea-version " in pluginXmlText && "since-build=" in pluginXmlText) {
             "Marketplace plugin descriptor must declare idea-version in ${pluginXml.absolutePath}"
         }
+        check("""<idea-version since-build="$expectedSinceBuild" until-build="$expectedUntilBuild" />""" in pluginXmlText) {
+            "Marketplace plugin descriptor must declare since-build=$expectedSinceBuild and until-build=$expectedUntilBuild in ${pluginXml.absolutePath}"
+        }
         val pluginZip = project(":studio-plugin").layout.buildDirectory
             .file("distributions/compose-code-locator-$version.zip")
             .get()
@@ -2778,7 +2829,82 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
         check(pluginZip.isFile) {
             "Missing Marketplace plugin ZIP: ${pluginZip.absolutePath}"
         }
+        val pluginJar = project(":studio-plugin").layout.buildDirectory
+            .file("libs/studio-plugin-$version.jar")
+            .get()
+            .asFile
+        val packagedPluginXml = ZipFile(pluginJar).use { zip ->
+            zip.getInputStream(zip.getEntry("META-INF/plugin.xml")).bufferedReader().use { it.readText() }
+        }
+        check("<version>$version</version>" in packagedPluginXml) {
+            "Packaged Marketplace plugin descriptor must declare version $version in ${pluginJar.absolutePath}"
+        }
+        check("""<idea-version since-build="$expectedSinceBuild" until-build="$expectedUntilBuild" />""" in packagedPluginXml) {
+            "Packaged Marketplace plugin descriptor must declare since-build=$expectedSinceBuild and until-build=$expectedUntilBuild in ${pluginJar.absolutePath}"
+        }
         println("Compose Locator Marketplace package verified at ${pluginZip.absolutePath}")
+    }
+}
+
+tasks.register<JavaExec>("verifyStudioPluginWithPluginVerifier") {
+    group = "verification"
+    description = "Runs JetBrains Plugin Verifier against the packaged Studio plugin ZIP. Set -Pcodelocator.studio.verifier.idePaths=/ide1,/ide2 to verify more local IDEs."
+    dependsOn("verifyComposeLocatorMarketplacePackage")
+
+    val version = project(":studio-plugin").version.toString()
+    val pluginZip = project(":studio-plugin").layout.buildDirectory.file("distributions/compose-code-locator-$version.zip")
+    val reportsDir = layout.buildDirectory.dir("reports/composeLocator/studio-plugin-verifier")
+    val defaultAndroidStudioHome = file("/Applications/Android Studio.app/Contents")
+    val configuredIdePaths = providers.gradleProperty("codelocator.studio.verifier.idePaths")
+        .map { raw ->
+            raw.split(File.pathSeparatorChar, ',')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+        }
+    val idePaths = configuredIdePaths.orElse(
+        providers.provider {
+            if (defaultAndroidStudioHome.isDirectory) {
+                listOf(defaultAndroidStudioHome.absolutePath)
+            } else {
+                emptyList()
+            }
+        },
+    )
+    val runtimeDir = providers.gradleProperty("codelocator.studio.verifier.runtimeDir")
+        .orElse(providers.environmentVariable("JAVA_HOME"))
+        .orElse(providers.provider { System.getProperty("java.home") })
+
+    classpath = studioPluginVerifierCli
+    mainClass.set("com.jetbrains.pluginverifier.PluginVerifierMain")
+
+    doFirst {
+        val resolvedIdePaths = idePaths.get()
+        check(resolvedIdePaths.isNotEmpty()) {
+            "No IDE path configured for Plugin Verifier. Install Android Studio at ${defaultAndroidStudioHome.absolutePath} or pass -Pcodelocator.studio.verifier.idePaths=/path/to/IDE/Contents"
+        }
+        val missingIdePaths = resolvedIdePaths.filterNot { file(it).isDirectory }
+        check(missingIdePaths.isEmpty()) {
+            "Plugin Verifier IDE paths do not exist: $missingIdePaths"
+        }
+        val zipFile = pluginZip.get().asFile
+        check(zipFile.isFile) {
+            "Missing Studio plugin ZIP for Plugin Verifier: ${zipFile.absolutePath}"
+        }
+        val reportRoot = reportsDir.get().asFile
+        reportRoot.mkdirs()
+        args = listOf(
+            "check-plugin",
+            "-verification-reports-dir",
+            reportRoot.absolutePath,
+            "-verification-reports-formats",
+            "plain,html,markdown",
+            "-runtime-dir",
+            runtimeDir.get(),
+            zipFile.absolutePath,
+        ) + resolvedIdePaths
+        println("Running JetBrains Plugin Verifier for ${zipFile.absolutePath}")
+        println("IDE paths: ${resolvedIdePaths.joinToString()}")
+        println("Reports: ${reportRoot.absolutePath}")
     }
 }
 
@@ -2801,6 +2927,9 @@ tasks.register("verifyComposeLocatorPublicPublishingReadiness") {
             !providers.environmentVariable("GRADLE_PUBLISH_SECRET").orNull.isNullOrBlank()
         val marketplaceConfigured = !providers.environmentVariable("INTELLIJ_PLATFORM_PUBLISHING_TOKEN").orNull.isNullOrBlank() ||
             !providers.environmentVariable("ORG_GRADLE_PROJECT_intellijPlatformPublishingToken").orNull.isNullOrBlank()
+        val studioPluginXml = project(":studio-plugin").file("src/main/resources/META-INF/plugin.xml").readText()
+        val studioPluginSinceBuild = extractVersion(studioPluginXml, Regex("""since-build="([^"]+)""""))
+        val studioPluginUntilBuild = extractVersion(studioPluginXml, Regex("""until-build="([^"]+)""""))
 
         val report = layout.buildDirectory.file("reports/composeLocator/public-publishing-readiness.md").get().asFile
         report.parentFile.mkdirs()
@@ -2809,6 +2938,8 @@ tasks.register("verifyComposeLocatorPublicPublishingReadiness") {
                 appendLine("# Compose Locator Public Publishing Readiness")
                 appendLine()
                 appendLine("- Version: `${project.version}`")
+                appendLine("- Studio plugin version: `${studioPluginVersion()}`")
+                appendLine("- Studio plugin compatibility: `$studioPluginSinceBuild-$studioPluginUntilBuild`")
                 appendLine("- Release archive: `build/composeLocator/compose-code-locator-${project.version}-release.zip`")
                 appendLine("- Maven Central signing configured: `$signingConfigured`")
                 appendLine("- Maven Central credentials configured: `$centralConfigured`")
