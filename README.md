@@ -2,6 +2,8 @@
 
 [Simplified Chinese](README-CN.md)
 
+[Technical write-up on Juejin](https://juejin.cn/spost/7657475917389545498)
+
 Compose Code Locator is a source navigation tool for Jetpack Compose. Its goal is to provide a CodeLocator-like workflow: click a UI element in an Android Studio screenshot panel and jump directly to the Compose call site that produced it.
 
 The core design is non-invasive for business UI code. App code does not need `.testTag(...)`, `.locatorNode(...)`, root collectors, an Application bridge, or Activity bridge. Source identity is injected at build time by the Gradle plugin, Kotlin IR compiler plugin, and AGP ASM transform. The debug runtime only exposes compact `sourceId` values and node bounds. Android Studio resolves those `sourceId` values back to `file:line` through a local source index.
