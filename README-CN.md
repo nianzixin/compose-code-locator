@@ -131,7 +131,16 @@ maven("/absolute/path/to/compose-code-locator-0.1.1/maven")
 
 ## Android Studio 插件
 
-构建插件 ZIP：
+从 JetBrains Marketplace 安装：
+
+1. Android Studio 打开 `Settings | Plugins | Marketplace`。
+2. 搜索 `Compose Code Locator`。
+3. 安装插件并重启 Android Studio。
+4. 打开接入了 Gradle 插件的 Android 工程，运行 debug app，在工具窗口抓取截图并点击元素定位源码。
+
+当前 Marketplace 插件版本为 `0.1.4`，兼容 IntelliJ Platform build range `241-261.*`。
+
+本地开发或离线安装时，可以构建插件 ZIP：
 
 ```bash
 ./gradlew :studio-plugin:buildStudioPluginZip
@@ -143,13 +152,13 @@ maven("/absolute/path/to/compose-code-locator-0.1.1/maven")
 studio-plugin/build/distributions/compose-code-locator-0.1.4.zip
 ```
 
-安装方式：
+从 Android Studio 安装本地 ZIP：
 
 1. Android Studio 打开 `Settings | Plugins`。
 2. 选择 `Install Plugin from Disk...`。
 3. 选择上面的 `compose-code-locator-0.1.4.zip`。
 4. 重启 Android Studio。
-5. 打开接入了插件的 Android 工程，运行 debug app，使用工具窗口抓取截图并点击元素定位源码。
+5. 打开接入了 Gradle 插件的 Android 工程，运行 debug app，使用工具窗口抓取截图并点击元素定位源码。
 
 ## 构建和验证
 
@@ -335,7 +344,7 @@ CODELOCATOR_DEVICE_SERIAL=<serial> ./gradlew verifyCodeLocatorDevice
 
 - Maven Central：已完成
 - Gradle Plugin Portal：已发布
-- JetBrains Marketplace：插件页已发布；Studio 插件 0.1.4 目标兼容 IntelliJ Platform build range 241-261.*，已准备好上传审核。
+- JetBrains Marketplace：已发布；Studio 插件 0.1.4 已审核通过，目标兼容 IntelliJ Platform build range 241-261.*。
 
 Marketplace 更新和发布产物步骤见 [docs/public-publishing.md](docs/public-publishing.md)。
 
