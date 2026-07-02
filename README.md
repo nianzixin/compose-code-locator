@@ -67,6 +67,8 @@ plugins {
 }
 ```
 
+`0.1.1` is the Gradle plugin/App debug SDK version. The Android Studio Marketplace plugin has its own version line; the current Studio plugin version is `0.1.4`.
+
 `team-compose-locator` wires dependencies automatically:
 
 ```kotlin
@@ -89,7 +91,12 @@ Optional configuration:
 
 ```kotlin
 composeLocator {
-    sourceDirectories = listOf("src/main/kotlin", "src/debug/kotlin")
+    sourceDirectories = listOf(
+        "src/main/java",
+        "src/main/kotlin",
+        "src/debug/java",
+        "src/debug/kotlin",
+    )
     includePackages = listOf("com.example")
 }
 ```

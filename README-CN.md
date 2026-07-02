@@ -67,6 +67,8 @@ plugins {
 }
 ```
 
+`0.1.1` 是 Gradle 插件/App debug SDK 的版本。Android Studio Marketplace 插件是独立版本线，当前 Studio 插件版本是 `0.1.4`。
+
 `team-compose-locator` 会自动处理依赖：
 
 ```kotlin
@@ -89,7 +91,12 @@ plugins {
 
 ```kotlin
 composeLocator {
-    sourceDirectories = listOf("src/main/kotlin", "src/debug/kotlin")
+    sourceDirectories = listOf(
+        "src/main/java",
+        "src/main/kotlin",
+        "src/debug/java",
+        "src/debug/kotlin",
+    )
     includePackages = listOf("com.example")
 }
 ```
