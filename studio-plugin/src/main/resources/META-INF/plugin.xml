@@ -3,7 +3,7 @@
     <name>Compose Code Locator</name>
     <version>0.1.4</version>
     <vendor url="https://github.com/nianzixin/compose-code-locator">nianzixin</vendor>
-    <idea-version since-build="241" until-build="261.*" />
+    <idea-version since-build="241" until-build="263.*" />
 
     <description><![CDATA[
         Compose Code Locator provides Android Studio screenshot-to-source navigation for Jetpack Compose debug builds.

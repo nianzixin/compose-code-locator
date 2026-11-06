@@ -503,7 +503,9 @@ private object LocatorLayoutTreeCollector {
 
     private fun SemanticsConfiguration.collapsePeerCompat(peer: SemanticsConfiguration) {
         runCatching {
-            javaClass.findMethod("collapsePeer\$ui_release")?.invoke(this, peer)
+            // Compose 1.12+ 混淆后缀从 ui_release 变为 ui
+            javaClass.findMethod("collapsePeer\$ui")?.invoke(this, peer)
+                ?: javaClass.findMethod("collapsePeer\$ui_release")?.invoke(this, peer)
         }.onFailure {
             peer.forEach { (key, value) ->
                 @Suppress("UNCHECKED_CAST")
@@ -625,8 +627,11 @@ private object LocatorLayoutChildrenReader {
     fun childrenOf(layoutInfo: LayoutInfo): List<LayoutInfo> {
         val accessor = accessors.computeIfAbsent(layoutInfo.javaClass) { clazz ->
             clazz.findMethod("getChildren")
+                // Compose 1.12+ 混淆后缀从 ui_release 变为 ui
+                ?: clazz.findMethod("getChildren\$ui")
                 ?: clazz.findMethod("getChildren\$ui_release")
                 ?: clazz.findMethod("getZSortedChildren")
+                ?: clazz.findMethod("get_children\$ui")
                 ?: clazz.findMethod("get_children\$ui_release")
                 ?: clazz.findField("children")
                 ?: clazz.findField("_children")
