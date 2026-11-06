@@ -54,7 +54,7 @@ class ComposeLocatorTeamPlugin : Plugin<Project> {
             dependency.group == "io.github.nianzixin" && dependency.name == "locator-runtime-android"
         } || configuration.dependencies.any { dependency ->
             dependency is ProjectDependency &&
-                dependency.dependencyProject.path == ":locator-runtime-android"
+                dependency.path == ":locator-runtime-android"
         }
         if (alreadyAdded) return
 

@@ -1,7 +1,9 @@
 package dev.codelocator.gradle
 
+import java.io.File
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.FileCollection
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.provider.Property
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Input
@@ -15,28 +17,28 @@ abstract class GenerateComposeLocatorSourceMapTask : DefaultTask() {
     @get:Input
     abstract val sourceDirectories: ListProperty<String>
 
+    // 配置期解析好的扫描根，每项为 "projectDir<分隔符>sourceDir"，执行期不再访问 Project
     @get:Input
-    abstract val aggregateProjectPaths: ListProperty<String>
+    abstract val scanRoots: ListProperty<String>
+
+    // 仅取路径字符串，避免把整个工程目录变成任务输入
+    @get:Input
+    abstract val pathRootDir: Property<String>
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    val kotlinSourceFiles: FileCollection
-        get() = project.files(scanRoots().flatMap { (scanProject, directories) ->
-            directories.map { scanProject.file(it) }
-        })
-            .asFileTree
-            .matching { it.include("**/*.kt") }
+    val kotlinSourceFiles: ConfigurableFileCollection = project.objects.fileCollection()
 
     @get:OutputFile
     abstract val outputPath: RegularFileProperty
 
     @TaskAction
     fun generate() {
-        val entries = scanRoots().flatMap { (scanProject, directories) ->
+        val entries = resolvedScanRoots().flatMap { (projectDir, directories) ->
             ComposeSourceScanner.scan(
-                projectDir = scanProject.projectDir,
+                projectDir = projectDir,
                 sourceDirectories = directories,
-                pathRootDir = project.rootProject.projectDir,
+                pathRootDir = java.io.File(pathRootDir.get()),
             )
         }
         val outputFile = outputPath.get().asFile
@@ -50,13 +52,19 @@ abstract class GenerateComposeLocatorSourceMapTask : DefaultTask() {
         }
     }
 
-    private fun scanRoots(): List<Pair<org.gradle.api.Project, List<String>>> {
-        return aggregateProjectPaths.get().mapNotNull { path ->
-            runCatching { project.project(path) }.getOrNull()
-        }.map { scanProject ->
-            val extension = scanProject.extensions.findByType(ComposeLocatorExtension::class.java)
-            val directories = extension?.sourceDirectories ?: sourceDirectories.get()
-            scanProject to directories
+    private fun resolvedScanRoots(): Map<File, List<String>> {
+        val roots = LinkedHashMap<File, MutableList<String>>()
+        scanRoots.get().forEach { entry ->
+            val separator = entry.indexOf(SCAN_ROOT_SEPARATOR)
+            if (separator > 0) {
+                roots.getOrPut(File(entry.substring(0, separator))) { mutableListOf() }
+                    .add(entry.substring(separator + 1))
+            }
         }
+        return roots
     }
 }
+
+/** scanRoots 条目内 projectDir 与 sourceDir 之间的分隔符，控制字符不会出现在路径里 */
+/** scanRoots 条目内 projectDir 与 sourceDir 之间的分隔符；'|' 在 Windows/Unix 路径里均非法 */
+private const val SCAN_ROOT_SEPARATOR = '|'

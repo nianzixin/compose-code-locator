@@ -1,10 +1,10 @@
 package dev.codelocator.gradle
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.FileCollection
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.provider.Property
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
-import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
@@ -19,12 +19,17 @@ abstract class GenerateComposeLocatorMetadataTask : DefaultTask() {
     @get:Input
     abstract val producerPath: Property<String>
 
+    // 生产模块目录与根目录在配置期注入，执行期不再访问 Project
+    @get:Input
+    abstract val producerProjectDir: Property<String>
+
+    // 仅取路径字符串，避免把整个工程目录变成任务输入
+    @get:Input
+    abstract val pathRootDir: Property<String>
+
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    val kotlinSourceFiles: FileCollection
-        get() = project.files(sourceDirectories.get().map(project::file))
-            .asFileTree
-            .matching { it.include("**/*.kt") }
+    val kotlinSourceFiles: ConfigurableFileCollection = project.objects.fileCollection()
 
     @get:OutputFile
     abstract val outputFile: RegularFileProperty
@@ -32,9 +37,9 @@ abstract class GenerateComposeLocatorMetadataTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val entries = ComposeSourceScanner.scan(
-            projectDir = project.projectDir,
+            projectDir = java.io.File(producerProjectDir.get()),
             sourceDirectories = sourceDirectories.get(),
-            pathRootDir = project.rootProject.projectDir,
+            pathRootDir = java.io.File(pathRootDir.get()),
         )
         val file = outputFile.get().asFile
         file.parentFile.mkdirs()

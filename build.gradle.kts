@@ -11,9 +11,9 @@ import java.util.zip.ZipOutputStream
 
 plugins {
     base
-    kotlin("jvm") version "2.0.21" apply false
-    kotlin("android") version "2.0.21" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+    kotlin("jvm") version "2.4.21" apply false
+    kotlin("android") version "2.4.21" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
     id("com.android.application") version "8.6.1" apply false
     id("com.android.library") version "8.6.1" apply false
     id("org.jetbrains.intellij") version "1.17.4" apply false
@@ -27,7 +27,7 @@ extra["publicGitHubUrl"] = publicGitHubUrl
 
 allprojects {
     group = publicGroupId
-    version = "0.1.1"
+    version = "0.1.2-k24"
 }
 
 val studioPluginVerifierCli by configurations.creating {
@@ -121,12 +121,12 @@ tasks.register("verifyDemoDevice") {
         fun execAndCapture(args: List<String>): String {
             val stdout = ByteArrayOutputStream()
             val stderr = ByteArrayOutputStream()
-            val result = project.exec {
+            val result = providers.exec {
                 commandLine(args)
                 standardOutput = stdout
                 errorOutput = stderr
                 isIgnoreExitValue = true
-            }
+            }.result.get()
             val out = stdout.toString()
             val err = stderr.toString()
             if (result.exitValue != 0) {
@@ -1167,12 +1167,12 @@ tasks.register("verifyStableDeviceNodeIds") {
         fun execAndCapture(args: List<String>): String {
             val stdout = ByteArrayOutputStream()
             val stderr = ByteArrayOutputStream()
-            val result = project.exec {
+            val result = providers.exec {
                 commandLine(args)
                 standardOutput = stdout
                 errorOutput = stderr
                 isIgnoreExitValue = true
-            }
+            }.result.get()
             if (result.exitValue != 0) {
                 throw GradleException("Command failed (${result.exitValue}): ${args.joinToString(" ")}\n${stderr.toString().ifBlank { stdout.toString() }}")
             }
@@ -2068,7 +2068,7 @@ tasks.register("verifyComposeLocatorTeamConvention") {
                 dependency.group == "io.github.nianzixin" && dependency.name == "locator-runtime-android"
             } || allDependencies.any { dependency ->
                 dependency is org.gradle.api.artifacts.ProjectDependency &&
-                    dependency.dependencyProject.path == ":locator-runtime-android"
+                    dependency.path == ":locator-runtime-android"
             }
         }
 
@@ -3134,7 +3134,7 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
 
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
-        val result = exec {
+        val result = providers.exec {
             workingDir = consumerDir
             commandLine = listOf(
                 project.rootDir.resolve("gradlew").absolutePath,
@@ -3145,7 +3145,7 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
             standardOutput = stdout
             errorOutput = stderr
             isIgnoreExitValue = true
-        }
+        }.result.get()
         check(result.exitValue == 0) {
             "Staged Compose Locator plugin consumer smoke test failed.\nSTDOUT:\n$stdout\nSTDERR:\n$stderr"
         }
