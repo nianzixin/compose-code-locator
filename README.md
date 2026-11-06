@@ -17,43 +17,53 @@ Compose 布局定位工具：在 Android Studio 插件里截取设备屏幕，�
 
 ### 1. 安装 Studio 插件（每个 AS 装一次）
 
-拿 `studio-plugin/build/distributions/compose-code-locator-0.1.5.zip`（发版人从 GitLab Releases 或构建产物获取），
-Android Studio → Settings → Plugins → ⚙ → **Install Plugin from Disk**，装完重启 AS。
+发版人把 `studio-plugin/build/distributions/compose-code-locator-0.1.5.zip`（GitLab Releases 或本地构建产物）发给团队成员，
+各人在 Android Studio 里 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，装完重启 AS。
 
 ### 2. 配置项目
 
-`settings.gradle.kts`：
+产物通过 GitLab Package Registry 分发（项目已设为 Public，**团队成员零配置、无需任何 token**）。
+`app/build.gradle.kts`（整段拷到文件顶部，plugins 块之前）：
 
 ```kotlin
-pluginManagement {
+// Compose Code Locator 按需加载：只有构建 debug 变体（assemble/install/bundle *Debug）时才启用，
+// 正式包打包、IDE 同步均不加载插件、不解析产物仓库，项目搬到无外网环境可正常出包
+buildscript {
     repositories {
-        maven("http://192.168.5.254/zhangjunjie/gradle-plugin-compose-code-locator.git#maven")
+        google()
+        mavenCentral()
+        // Compose Code Locator 产物：GitLab Package Registry，放最后避免拖慢官方依赖解析
+        maven { url = uri("http://192.168.5.254/api/v4/projects/513/packages/maven") }
+    }
+    val debugBuild = gradle.startParameter.taskNames
+        .map { it.substringAfterLast(':') }
+        .any { (it.startsWith("assemble") || it.startsWith("install") || it.startsWith("bundle")) && it.endsWith("Debug") }
+    if (debugBuild) {
+        dependencies {
+            classpath("io.github.nianzixin:locator-gradle-plugin:0.1.2")
+        }
     }
 }
-dependencyResolutionManagement {
-    repositories {
-        maven("http://192.168.5.254/zhangjunjie/gradle-plugin-compose-code-locator.git#maven")
-    }
-}
-```
 
-`app/build.gradle.kts`：
-
-```kotlin
 plugins {
-    id("io.github.nianzixin.team-compose-locator") version "0.1.2"
+    // 原有的插件声明保持不变，不要在这里声明 locator 插件
 }
 
-composeLocator {
-    compilerPluginArtifact = "io.github.nianzixin:locator-compiler-plugin:0.1.2"
-}
-
-dependencies {
-    debugImplementation("io.github.nianzixin:locator-runtime-android:0.1.2")
+val isDebugLocatorBuild = gradle.startParameter.taskNames
+    .map { it.substringAfterLast(':') }
+    .any { (it.startsWith("assemble") || it.startsWith("install") || it.startsWith("bundle")) && it.endsWith("Debug") }
+if (isDebugLocatorBuild) {
+    apply(plugin = "io.github.nianzixin.team-compose-locator")
 }
 ```
 
-`app/src/debug/AndroidManifest.xml`（runtime 库 minSdk 26，项目 minSdk 低于 26 时需要）：
+应用后插件自动完成三件事，无需手动配置：给 debug 构建注入编译器插件、
+自动添加 runtime 依赖（`debugImplementation`）、生成 Studio 索引。
+插件 jar 与 AGP 在同一脚本 classpath，无类加载器冲突。
+
+升级版本：发版人发布新版本后，把上面两处 `0.1.2` 改成新版本号即可。
+
+`app/src/debug/AndroidManifest.xml`（runtime 库 minSdk 26，项目 minSdk 低于 26 时要在 debug manifest 里加这一行）：
 
 ```xml
 <manifest xmlns:tools="http://schemas.android.com/tools">
@@ -69,7 +79,7 @@ dependencies {
 4. 右侧候选列表选目标，双击跳转源码
 
 注意：
-- clean 后重新 build，下次点选自动加载新索引（有"刷新索引"按钮可手动强制刷新），**无需重启 AS**
+- clean 后重新 build，下次点选会自动加载新索引；点“刷新索引”按钮可手动强制刷新，这两种情况都不需要重启 AS
 - 只有 debug 构建带定位能力，release 不受影响
 
 ## 发版流程（维护者）
@@ -87,14 +97,17 @@ export JAVA_HOME="H:/Cache/android/gradle/jdks/eclipse_adoptium-17-amd64-windows
 # 2. 打 Studio 插件 zip
 ./gradlew :studio-plugin:buildStudioPluginZip
 
-# 3. 把 Maven 产物推到 maven 分支（脚本会先清空工作区，本脚本有未提交改动时勿运行）
+# 3. 上传产物到 GitLab Package Registry（认证读仓库根目录 .deployToken，已 gitignore，团队成员匿名即可下载）
+bash publish-gitlab-registry.sh
+
+# 备选：产物也可推到 maven 分支（git worktree 方式，不影响工作区）
 bash publish-maven-branch.sh internal
 ```
 
 分支结构：
 
 - `main` — 源码（`internal` remote：`git@192.168.5.254:zhangjunjie/gradle-plugin-compose-code-locator.git`）
-- `maven` — Maven 产物，根目录即 Maven 仓库，团队通过 git URL 直接引用
+- `maven` — 产物备份分支（根目录即 Maven 仓库），团队分发以 Package Registry 为主
 
 版本号规则：上游版本 +1。Maven 三件套统一一个版本号，Studio 插件独立版本号；改代码发新版时相应 +1。
 
@@ -102,8 +115,8 @@ bash publish-maven-branch.sh internal
 
 | 现象 | 排查 |
 |---|---|
-| 状态栏 "Studio index not found/empty" | 先 build 一次 debug 包；再点"刷新索引"；仍不行重启 AS |
-| 点选提示 "runtime did not provide sourceId" | 装的不是本插件构建的 debug 包，重装 |
+| 状态栏提示 “Studio index not found/empty” | 先 build 一次 debug 包，再点“刷新索引”；仍不行就重启 AS |
+| 点选提示 “runtime did not provide sourceId” | 设备上装的不是本插件构建的 debug 包，重装 |
 | 窗口空白/打不开 | 看 `idea.log`（`AppData/Local/Google/AndroidStudio2026.2.1/log`）grep codelocator |
 | 设备连不上 | `adb forward tcp:49391 tcp:49391` 后 `curl http://127.0.0.1:49391/health` 验证运行时存活 |
 

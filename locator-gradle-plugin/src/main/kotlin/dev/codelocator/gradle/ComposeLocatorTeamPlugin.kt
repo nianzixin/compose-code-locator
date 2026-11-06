@@ -18,7 +18,8 @@ class ComposeLocatorTeamPlugin : Plugin<Project> {
             }
         }
 
-        project.pluginManager.apply("io.github.nianzixin.compose-locator")
+        // 按类应用核心插件：按 id 应用依赖插件仓库的 marker 解析，在按需加载（applied script）场景下不可用
+        project.pluginManager.apply(ComposeLocatorPlugin::class.java)
     }
 
     private fun addRuntimeDependencies(
