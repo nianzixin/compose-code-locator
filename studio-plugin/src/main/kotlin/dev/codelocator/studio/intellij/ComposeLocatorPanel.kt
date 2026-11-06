@@ -426,9 +426,12 @@ private class ScreenshotCanvas(
             val width = ((bounds.right - bounds.left) * placement.scale).toInt().coerceAtLeast(1)
             val height = ((bounds.bottom - bounds.top) * placement.scale).toInt().coerceAtLeast(1)
             val selected = candidate == selectedCandidate || (selectedCandidate == null && index == 0)
-            graphics.color = if (selected) Color(0xE2, 0x58, 0x22, 96) else Color(0x28, 0x7D, 0x8E, 72)
-            graphics.fillRoundRect(x, y, width, height, 12, 12)
-            graphics.color = if (selected) Color(0x8C, 0x2D, 0x04) else Color(0x0D, 0x47, 0x56)
+            // 未选中候选只画边框，避免多个大范围候选叠加染色看不清截图
+            if (selected) {
+                graphics.color = Color(0xE2, 0x58, 0x22, 64)
+                graphics.fillRoundRect(x, y, width, height, 12, 12)
+            }
+            graphics.color = if (selected) Color(0xE2, 0x58, 0x22) else Color(0x0D, 0x47, 0x56)
             graphics.drawRoundRect(x, y, width, height, 12, 12)
         }
     }
