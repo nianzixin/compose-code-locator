@@ -1,6 +1,5 @@
 package dev.codelocator.gradle
 
-import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.Property
@@ -17,9 +16,9 @@ abstract class GenerateComposeLocatorAsmSourceMapTask : DefaultTask() {
     @get:Input
     abstract val sourceDirectories: ListProperty<String>
 
-    // 配置期解析好的扫描根，每项为 "projectDir|sourceDir"，执行期不再访问 Project
+    // 配置期解析好的扫描根，执行期不再访问 Project
     @get:Input
-    abstract val scanRoots: ListProperty<String>
+    abstract val scanRoots: ListProperty<ComposeLocatorScanRoot>
 
     // 仅取路径字符串，避免把整个工程目录变成任务输入
     @get:Input
@@ -34,7 +33,7 @@ abstract class GenerateComposeLocatorAsmSourceMapTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val entries = resolvedScanRoots().flatMap { (projectDir, directories) ->
+        val entries = scanRoots.get().resolvedScanRoots().flatMap { (projectDir, directories) ->
             ComposeSourceScanner.scan(
                 projectDir = projectDir,
                 sourceDirectories = directories,
@@ -61,17 +60,5 @@ abstract class GenerateComposeLocatorAsmSourceMapTask : DefaultTask() {
         } else {
             logger.lifecycle("Compose locator ASM source map unchanged at ${file.absolutePath}")
         }
-    }
-
-    private fun resolvedScanRoots(): Map<File, List<String>> {
-        val roots = LinkedHashMap<File, MutableList<String>>()
-        scanRoots.get().forEach { entry ->
-            val separator = entry.indexOf('|')
-            if (separator > 0) {
-                roots.getOrPut(File(entry.substring(0, separator))) { mutableListOf() }
-                    .add(entry.substring(separator + 1))
-            }
-        }
-        return roots
     }
 }

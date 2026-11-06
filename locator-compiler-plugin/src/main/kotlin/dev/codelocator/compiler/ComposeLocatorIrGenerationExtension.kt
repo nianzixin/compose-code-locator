@@ -83,58 +83,26 @@ class ComposeLocatorIrGenerationExtension(
                             currentModifier != null &&
                             currentModifier.type.isModifierType()
                         ) {
-                            val extensionReceiver = locatorSourceExtensionFunction.owner.extensionReceiverParameter()
-                                ?: return expression
-                            val longParameter = locatorSourceExtensionFunction.owner.regularParameters().single()
-                            // Kotlin 2.2+：impl 包顶层工厂函数替代 fromSymbolOwner
-                            // Kotlin 2.4：构造器与指示器均为 internal，用官方迁移期压制手段访问
-                            @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
-                            val sourceCall = IrCallImpl(
-                                IrElementConstructorIndicator,
-                                expression.startOffset,
-                                expression.endOffset,
-                                currentModifier.type,
-                                expression.origin,
-                                locatorSourceExtensionFunction,
-                                null,
-                            ).apply {
-                                // internal 构造器不预分配 arguments，先补齐到 parameters 个数
-                                val paramCount = locatorSourceExtensionFunction.owner.parameters.size
-                                while (arguments.size < paramCount) arguments.add(null)
-                                arguments[extensionReceiver.indexInParameters] = currentModifier
-                                arguments[longParameter.indexInParameters] = IrConstImpl.long(
-                                    startOffset = expression.startOffset,
-                                    endOffset = expression.endOffset,
-                                    type = pluginContext.irBuiltIns.longType,
-                                    value = sourceId,
-                                )
-                            }
+                            val sourceCall = createLocatorSourceCall(
+                                expression = expression,
+                                returnType = currentModifier.type,
+                                function = locatorSourceExtensionFunction,
+                                modifier = currentModifier,
+                                sourceId = sourceId,
+                                pluginContext = pluginContext,
+                            )
                             expression.arguments[modifierParameter.indexInParameters] = sourceCall
                             injected = true
                             injectionKind = "modifier"
                         } else if (modifierParameter != null && locatorSourceFactoryFunction != null) {
-                            val longParameter = locatorSourceFactoryFunction.owner.regularParameters().single()
-                            // Kotlin 2.4：构造器与指示器均为 internal，用官方迁移期压制手段访问
-                            @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
-                            val sourceCall = IrCallImpl(
-                                IrElementConstructorIndicator,
-                                expression.startOffset,
-                                expression.endOffset,
-                                modifierParameter.type,
-                                expression.origin,
-                                locatorSourceFactoryFunction,
-                                null,
-                            ).apply {
-                                // internal 构造器不预分配 arguments，先补齐到 parameters 个数
-                                val paramCount = locatorSourceFactoryFunction.owner.parameters.size
-                                while (arguments.size < paramCount) arguments.add(null)
-                                arguments[longParameter.indexInParameters] = IrConstImpl.long(
-                                    startOffset = expression.startOffset,
-                                    endOffset = expression.endOffset,
-                                    type = pluginContext.irBuiltIns.longType,
-                                    value = sourceId,
-                                )
-                            }
+                            val sourceCall = createLocatorSourceCall(
+                                expression = expression,
+                                returnType = modifierParameter.type,
+                                function = locatorSourceFactoryFunction,
+                                modifier = null,
+                                sourceId = sourceId,
+                                pluginContext = pluginContext,
+                            )
                             expression.arguments[modifierParameter.indexInParameters] = sourceCall
                             expression.clearDefaultMaskBit(
                                 parameter = modifierParameter,
@@ -160,6 +128,42 @@ class ComposeLocatorIrGenerationExtension(
             )
         }
         writeReport(records)
+    }
+
+    /** 构造定位调用，并按 Kotlin 2.2+ 的统一参数下标写入 receiver 与 sourceId */
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
+    private fun createLocatorSourceCall(
+        expression: IrCall,
+        returnType: IrType,
+        function: org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol,
+        modifier: IrExpression?,
+        sourceId: Long,
+        pluginContext: IrPluginContext,
+    ): IrCall {
+        // Kotlin 2.4：构造器与指示器均为 internal，用官方迁移期压制手段访问
+        @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
+        return IrCallImpl(
+            IrElementConstructorIndicator,
+            expression.startOffset,
+            expression.endOffset,
+            returnType,
+            expression.origin,
+            function,
+            null,
+        ).apply {
+            // internal 构造器不预分配 arguments，先补齐到 parameters 个数
+            while (arguments.size < function.owner.parameters.size) arguments.add(null)
+            function.owner.extensionReceiverParameter()?.let { receiver ->
+                arguments[receiver.indexInParameters] = modifier
+            }
+            val longParameter = function.owner.regularParameters().single()
+            arguments[longParameter.indexInParameters] = IrConstImpl.long(
+                startOffset = expression.startOffset,
+                endOffset = expression.endOffset,
+                type = pluginContext.irBuiltIns.longType,
+                value = sourceId,
+            )
+        }
     }
 
     private fun shouldProcess(file: IrFile): Boolean {

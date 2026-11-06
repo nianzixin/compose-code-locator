@@ -155,19 +155,19 @@ class ComposeLocatorPlugin : Plugin<Project> {
         injectComposeLocatorMarkersTask: TaskProvider<Task>,
     ) {
         generateSourceMapTask.configure {
-            it.scanRoots.set(project.composeLocatorScanRootEntries())
+            it.scanRoots.set(project.composeLocatorScanRoots())
             it.pathRootDir.set(project.rootProject.projectDir.absolutePath)
-            it.kotlinSourceFiles.from(project.composeLocatorScanRootFiles())
+            it.kotlinSourceFiles.from(project.composeLocatorKotlinSourceFiles())
         }
         generateAsmSourceMapTask.configure {
-            it.scanRoots.set(project.composeLocatorScanRootEntries())
+            it.scanRoots.set(project.composeLocatorScanRoots())
             it.pathRootDir.set(project.rootProject.projectDir.absolutePath)
-            it.kotlinSourceFiles.from(project.composeLocatorScanRootFiles())
+            it.kotlinSourceFiles.from(project.composeLocatorKotlinSourceFiles())
         }
         generateMetadataTask.configure {
             it.producerProjectDir.set(project.projectDir.absolutePath)
             it.pathRootDir.set(project.rootProject.projectDir.absolutePath)
-            it.kotlinSourceFiles.from(project.composeLocatorScanRootFiles())
+            it.kotlinSourceFiles.from(project.composeLocatorKotlinSourceFiles())
         }
 
         configureDependencyMetadataExtraction(project, extractDependencyMetadataTask)
@@ -181,6 +181,10 @@ class ComposeLocatorPlugin : Plugin<Project> {
         // 仅主源码集的 Debug Kotlin 编译任务，排除 AndroidTest/UnitTest
         project.tasks.matching { it.name.startsWith("compile") && it.name.endsWith("DebugKotlin") && !it.name.contains("Test") }
             .all { compileDebugKotlin ->
+                val variantName = compileDebugKotlin.name
+                    .removePrefix("compile")
+                    .removeSuffix("Kotlin")
+                    .replaceFirstChar { it.lowercase() }
                 compileDebugKotlin.dependsOn(generateSourceMapTask, extractDependencyMetadataTask)
                 if (extension.generateRuntimeMarkers) {
                     configureCompilerPlugin(project, extension, compileDebugKotlin)
@@ -193,31 +197,29 @@ class ComposeLocatorPlugin : Plugin<Project> {
                 }
                 inspectComposeBytecodeTask.configure {
                     it.mustRunAfter(compileDebugKotlin)
+                    it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/$variantName"))
                 }
                 instrumentComposeBytecodeTask.configure {
                     it.mustRunAfter(compileDebugKotlin)
                     it.mustRunAfter(inspectComposeBytecodeTask)
+                    it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/$variantName"))
                 }
                 verifyCompilerSourceAlignmentTask.configure {
                     it.dependsOn(compileDebugKotlin)
                 }
             }
-        inspectComposeBytecodeTask.configure {
-            it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/debug"))
-        }
-        instrumentComposeBytecodeTask.configure {
-            it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/debug"))
-        }
     }
 
-    /** 配置期把扫描根解析为 "projectDir|sourceDir" 条目，执行期任务不再访问 Project */
-    private fun Project.composeLocatorScanRootEntries(): List<String> {
-        val projectDir = layout.projectDirectory.asFile.absolutePath
-        return composeLocatorSourceDirs().map { "$projectDir|$it" }
+    /** 配置期解析源码扫描根，执行期任务不再访问 Project */
+    private fun Project.composeLocatorScanRoots(): List<ComposeLocatorScanRoot> {
+        val projectDir = layout.projectDirectory.asFile
+        return composeLocatorSourceDirs().map { ComposeLocatorScanRoot(projectDir, it) }
     }
 
-    private fun Project.composeLocatorScanRootFiles(): List<java.io.File> {
-        return composeLocatorSourceDirs().map { file(it) }
+    private fun Project.composeLocatorKotlinSourceFiles(): List<org.gradle.api.file.FileTree> {
+        return composeLocatorSourceDirs().map { sourceDir ->
+            fileTree(sourceDir) { it.include("**/*.kt") }
+        }
     }
 
     private fun Project.composeLocatorSourceDirs(): List<String> {
