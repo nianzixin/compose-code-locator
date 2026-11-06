@@ -10,6 +10,7 @@ Compose 布局定位工具：在 Android Studio 插件里截取设备屏幕，�
 |---|---|---|
 | `team-compose-locator`（gradle 插件） | 接入项目构建，自动注入编译器插件 | 0.1.2 |
 | `locator-compiler-plugin` | Kotlin 编译器插件，给 Compose 调用注入 sourceId | 0.1.2 |
+| `locator-runtime` | 运行时核心 | 0.1.2 |
 | `locator-runtime-android` | debug 包内运行时，采集节点并通过 HTTP 暴露 | 0.1.2 |
 | `studio-plugin` | Android Studio 插件，截图点选跳转源码 | 0.1.5 |
 
@@ -24,11 +25,11 @@ http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-s
 ```
 
 各人在 Android Studio 里 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，装完重启 AS。
-发版脚本会自动把 Studio 插件 zip 传到上面的地址，升级版本后换 URL 里的版本号即可。
+zip 由发版脚本自动上传（见下方发版流程），升级版本后换 URL 里的版本号即可。
 
 ### 2. 配置项目
 
-产物通过 GitLab Package Registry 分发（项目已设为 Public，**团队成员零配置、无需任何 token**）。
+产物通过 GitLab Package Registry 分发。
 `app/build.gradle.kts`（整段拷到文件顶部，plugins 块之前）：
 
 ```kotlin
@@ -39,7 +40,10 @@ buildscript {
         google()
         mavenCentral()
         // Compose Code Locator 产物：GitLab Package Registry，放最后避免拖慢官方依赖解析
-        maven { url = uri("http://192.168.5.254/api/v4/projects/513/packages/maven") }
+        maven {
+            url = uri("http://192.168.5.254/api/v4/projects/513/packages/maven")
+            isAllowInsecureProtocol = true
+        }
     }
     val debugBuild = gradle.startParameter.taskNames
         .map { it.substringAfterLast(':') }
@@ -67,7 +71,7 @@ if (isDebugLocatorBuild) {
 自动添加 runtime 依赖（`debugImplementation`）、生成 Studio 索引。
 插件 jar 与 AGP 在同一脚本 classpath，无类加载器冲突。
 
-升级版本：发版人发布新版本后，把上面两处 `0.1.2` 改成新版本号即可。
+升级版本：发版人发布新版本后，把 classpath 那行的 `0.1.2` 改成新版本号即可。
 
 `app/src/debug/AndroidManifest.xml`（runtime 库 minSdk 26，项目 minSdk 低于 26 时要在 debug manifest 里加这一行）：
 
@@ -86,14 +90,16 @@ if (isDebugLocatorBuild) {
 
 注意：
 - clean 后重新 build，下次点选会自动加载新索引；点“刷新索引”按钮可手动强制刷新，这两种情况都不需要重启 AS
-- 只有 debug 构建带定位能力，release 不受影响
 
 ## 发版流程（维护者）
 
-前置：JDK 17（系统默认高版本 JDK 会导致 Kotlin 编译失败）。
+前置：JDK 17（系统默认高版本 JDK 会导致 Kotlin 编译失败；路径按本机 JDK 17 实际位置调整）。
 
 ```bash
 export JAVA_HOME="H:/Cache/android/gradle/jdks/eclipse_adoptium-17-amd64-windows.2"
+
+# 0. 版本号 +1：Maven 三件套共用一个版本号，Studio 插件独立版本号（规则见本节末尾），
+#    改动分布在各模块 build.gradle.kts 与 studio-plugin 的 pluginVersion
 
 # 1. 发布全部 Maven 产物到本地 staging 目录
 ./gradlew :locator-runtime:publish :locator-runtime-android:publish \
@@ -106,6 +112,9 @@ export JAVA_HOME="H:/Cache/android/gradle/jdks/eclipse_adoptium-17-amd64-windows
 # 3. 上传全部产物到 GitLab Package Registry（Maven 产物 + Studio 插件 zip，
 #    认证读仓库根目录 .deployToken，已 gitignore，团队成员匿名即可下载）
 bash publish-gitlab-registry.sh
+
+# 4. 提交并推送 main
+git add -A && git commit -m "chore(release): 发布 x.y.z" && git push internal main
 
 # 备选：产物也可推到 maven 分支（git worktree 方式，不影响工作区）
 bash publish-maven-branch.sh internal
@@ -135,5 +144,6 @@ locator-compiler-plugin/    Kotlin 编译器插件（IR 注入 sourceId）
 locator-runtime/            运行时核心
 locator-runtime-android/    Android 运行时（HTTP 服务、节点采集）
 studio-plugin/              Android Studio 插件（截图、点选、跳转）
+publish-gitlab-registry.sh  发布脚本：上传 Maven 产物 + Studio 插件 zip 到 Package Registry
 publish-maven-branch.sh     maven 分支发布脚本
 ```
