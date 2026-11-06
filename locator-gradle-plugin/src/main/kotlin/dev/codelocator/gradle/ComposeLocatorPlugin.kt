@@ -37,7 +37,6 @@ class ComposeLocatorPlugin : Plugin<Project> {
             it.group = "compose locator"
             it.description = "Generates a Compose source map for discovered @Composable functions."
             it.sourceDirectories.set(extension.sourceDirectories)
-            it.aggregateProjectPaths.set(listOf(project.path))
             it.outputPath.set(project.layout.projectDirectory.file(extension.sourceMapOutput))
         }
 
@@ -45,7 +44,6 @@ class ComposeLocatorPlugin : Plugin<Project> {
             it.group = "compose locator"
             it.description = "Generates a compact Compose call-site source map for AGP ASM instrumentation."
             it.sourceDirectories.set(extension.sourceDirectories)
-            it.aggregateProjectPaths.set(listOf(project.path))
             it.outputFile.set(project.layout.projectDirectory.file(extension.asmSourceMapOutput))
         }
 
@@ -109,8 +107,8 @@ class ComposeLocatorPlugin : Plugin<Project> {
                 generateMetadataTask,
                 generateStudioIndexTask,
             )
-            it.doLast {
-                project.logger.lifecycle("Compose locator debug source identity is up to date.")
+            it.doLast { task ->
+                task.logger.lifecycle("Compose locator debug source identity is up to date.")
             }
         }
 
@@ -157,48 +155,76 @@ class ComposeLocatorPlugin : Plugin<Project> {
         injectComposeLocatorMarkersTask: TaskProvider<Task>,
     ) {
         generateSourceMapTask.configure {
-            it.aggregateProjectPaths.set(listOf(project.path))
+            it.scanRoots.set(project.composeLocatorScanRoots())
+            it.pathRootDir.set(project.rootProject.projectDir.absolutePath)
+            it.kotlinSourceFiles.from(project.composeLocatorKotlinSourceFiles())
         }
         generateAsmSourceMapTask.configure {
-            it.aggregateProjectPaths.set(listOf(project.path))
+            it.scanRoots.set(project.composeLocatorScanRoots())
+            it.pathRootDir.set(project.rootProject.projectDir.absolutePath)
+            it.kotlinSourceFiles.from(project.composeLocatorKotlinSourceFiles())
+        }
+        generateMetadataTask.configure {
+            it.producerProjectDir.set(project.projectDir.absolutePath)
+            it.pathRootDir.set(project.rootProject.projectDir.absolutePath)
+            it.kotlinSourceFiles.from(project.composeLocatorKotlinSourceFiles())
         }
 
         configureDependencyMetadataExtraction(project, extractDependencyMetadataTask)
 
-        project.tasks.findByName("preDebugBuild")?.dependsOn(generateSourceMapTask, generateAsmSourceMapTask, generateMetadataTask, generateStudioIndexTask)
-        project.tasks.findByName("compileDebugKotlin")?.dependsOn(generateSourceMapTask, extractDependencyMetadataTask)
-        project.tasks.findByName("assembleDebug")?.dependsOn(
-            injectComposeLocatorMarkersTask,
-        )
+        // productFlavor-aware: task names look like preDevMangoDebugBuild / compileDevMangoDebugKotlin / assembleDevMangoDebug
+        project.tasks.matching { it.name.startsWith("pre") && it.name.endsWith("DebugBuild") }
+            .all { it.dependsOn(generateSourceMapTask, generateAsmSourceMapTask, generateMetadataTask, generateStudioIndexTask) }
+        project.tasks.matching { it.name.startsWith("assemble") && it.name.endsWith("Debug") && !it.name.contains("Test") }
+            .all { it.dependsOn(injectComposeLocatorMarkersTask) }
 
-        val compileDebugKotlin = project.tasks.findByName("compileDebugKotlin")
-        if (compileDebugKotlin != null) {
-            if (extension.generateRuntimeMarkers) {
-                configureCompilerPlugin(project, extension, compileDebugKotlin)
-            }
-            if (extension.enableBytecodeInspection) {
-                compileDebugKotlin.finalizedBy(inspectComposeBytecodeTask)
-                injectComposeLocatorMarkersTask.configure {
-                    it.dependsOn(inspectComposeBytecodeTask)
+        // Only Debug Kotlin compile tasks of the main source set; excludes AndroidTest/UnitTest
+        project.tasks.matching { it.name.startsWith("compile") && it.name.endsWith("DebugKotlin") && !it.name.contains("Test") }
+            .all { compileDebugKotlin ->
+                val variantName = compileDebugKotlin.name
+                    .removePrefix("compile")
+                    .removeSuffix("Kotlin")
+                    .replaceFirstChar { it.lowercase() }
+                compileDebugKotlin.dependsOn(generateSourceMapTask, extractDependencyMetadataTask)
+                if (extension.generateRuntimeMarkers) {
+                    configureCompilerPlugin(project, extension, compileDebugKotlin)
+                }
+                if (extension.enableBytecodeInspection) {
+                    compileDebugKotlin.finalizedBy(inspectComposeBytecodeTask)
+                    injectComposeLocatorMarkersTask.configure {
+                        it.dependsOn(inspectComposeBytecodeTask)
+                    }
+                }
+                inspectComposeBytecodeTask.configure {
+                    it.mustRunAfter(compileDebugKotlin)
+                    it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/$variantName"))
+                }
+                instrumentComposeBytecodeTask.configure {
+                    it.mustRunAfter(compileDebugKotlin)
+                    it.mustRunAfter(inspectComposeBytecodeTask)
+                    it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/$variantName"))
+                }
+                verifyCompilerSourceAlignmentTask.configure {
+                    it.dependsOn(compileDebugKotlin)
                 }
             }
-            inspectComposeBytecodeTask.configure {
-                it.mustRunAfter(compileDebugKotlin)
-            }
-            instrumentComposeBytecodeTask.configure {
-                it.mustRunAfter(compileDebugKotlin)
-                it.mustRunAfter(inspectComposeBytecodeTask)
-            }
-            inspectComposeBytecodeTask.configure {
-                it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/debug"))
-            }
-            instrumentComposeBytecodeTask.configure {
-                it.classesDirectory.set(project.layout.buildDirectory.dir("tmp/kotlin-classes/debug"))
-            }
-            verifyCompilerSourceAlignmentTask.configure {
-                it.dependsOn(compileDebugKotlin)
-            }
+    }
+
+    /** Resolve source scan roots at configuration time so task execution never touches Project */
+    private fun Project.composeLocatorScanRoots(): List<ComposeLocatorScanRoot> {
+        val projectDir = layout.projectDirectory.asFile
+        return composeLocatorSourceDirs().map { ComposeLocatorScanRoot(projectDir, it) }
+    }
+
+    private fun Project.composeLocatorKotlinSourceFiles(): List<org.gradle.api.file.FileTree> {
+        return composeLocatorSourceDirs().map { sourceDir ->
+            fileTree(sourceDir) { it.include("**/*.kt") }
         }
+    }
+
+    private fun Project.composeLocatorSourceDirs(): List<String> {
+        val extension = extensions.findByType(ComposeLocatorExtension::class.java)
+        return extension?.sourceDirectories ?: listOf("src/main/kotlin", "src/debug/kotlin")
     }
 
     private fun configureCompilerPlugin(
@@ -377,7 +403,8 @@ class ComposeLocatorPlugin : Plugin<Project> {
         ).mapNotNull(project.configurations::findByName)
             .flatMap { configuration -> configuration.dependencies.withType(ProjectDependency::class.java).toList() }
             .forEach { dependency ->
-                collectComposeLocatorProjectDependencies(dependency.dependencyProject, output)
+                // Gradle 9 removed ProjectDependency.dependencyProject; look up the project by path instead
+                collectComposeLocatorProjectDependencies(project.project(dependency.path), output)
             }
     }
 

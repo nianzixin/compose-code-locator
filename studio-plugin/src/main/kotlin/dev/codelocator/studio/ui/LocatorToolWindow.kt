@@ -64,6 +64,14 @@ class LocatorToolWindow(
         return sourceIndex.resolutionHint(candidate.sourceId)
     }
 
+    /**
+     * Rescans the Studio index on disk; no IDE restart needed after clean/build
+     */
+    fun refreshSourceIndex(): String {
+        sourceIndex.refresh()
+        return sourceIndex.describeState()
+    }
+
     fun disconnect() {
         studioService?.disconnect()
     }

@@ -126,6 +126,20 @@ class ComposeLocatorPanel(
                     }
                 }
             })
+
+            add(JButton("刷新索引").apply {
+                addActionListener {
+                    statusLabel.text = "Refreshing source index..."
+                    runInBackground {
+                        val state = toolWindow.refreshSourceIndex()
+                        runOnUi {
+                            statusLabel.text = state
+                        }
+                    }.onFailureUi { error ->
+                        statusLabel.text = "Index refresh failed: ${error.message}"
+                    }
+                }
+            })
         }
 
         candidateList.addListSelectionListener {
@@ -426,9 +440,12 @@ private class ScreenshotCanvas(
             val width = ((bounds.right - bounds.left) * placement.scale).toInt().coerceAtLeast(1)
             val height = ((bounds.bottom - bounds.top) * placement.scale).toInt().coerceAtLeast(1)
             val selected = candidate == selectedCandidate || (selectedCandidate == null && index == 0)
-            graphics.color = if (selected) Color(0xE2, 0x58, 0x22, 96) else Color(0x28, 0x7D, 0x8E, 72)
-            graphics.fillRoundRect(x, y, width, height, 12, 12)
-            graphics.color = if (selected) Color(0x8C, 0x2D, 0x04) else Color(0x0D, 0x47, 0x56)
+            // Unselected candidates only get an outline, so overlapping large candidates do not tint the whole screenshot unreadably
+            if (selected) {
+                graphics.color = Color(0xE2, 0x58, 0x22, 64)
+                graphics.fillRoundRect(x, y, width, height, 12, 12)
+            }
+            graphics.color = if (selected) Color(0xE2, 0x58, 0x22) else Color(0x0D, 0x47, 0x56)
             graphics.drawRoundRect(x, y, width, height, 12, 12)
         }
     }

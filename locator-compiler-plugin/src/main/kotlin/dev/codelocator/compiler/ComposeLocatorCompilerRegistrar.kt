@@ -7,6 +7,8 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 
 @OptIn(ExperimentalCompilerApi::class)
 class ComposeLocatorCompilerRegistrar : CompilerPluginRegistrar() {
+    override val pluginId: String = ComposeLocatorCommandLineProcessor.PLUGIN_ID
+
     override val supportsK2: Boolean = true
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {

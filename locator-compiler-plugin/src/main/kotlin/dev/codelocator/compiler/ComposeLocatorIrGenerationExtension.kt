@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
+
 package dev.codelocator.compiler
 
 import java.io.File
@@ -6,10 +8,13 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
+import org.jetbrains.kotlin.ir.util.IrElementConstructorIndicator
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -31,29 +36,24 @@ class ComposeLocatorIrGenerationExtension(
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         val records = mutableListOf<CallSiteRecord>()
-        val locatorSourceExtensionFunction = pluginContext
-            .referenceFunctions(
-                CallableId(
-                    FqName("dev.codelocator.runtime.android"),
-                    Name.identifier("locatorSource"),
-                ),
-            )
+        val locatorFunctions = pluginContext.referenceFunctions(
+            CallableId(
+                FqName("dev.codelocator.runtime.android"),
+                Name.identifier("locatorSource"),
+            ),
+        )
+        // Kotlin 2.2+: receivers and regular parameters are unified into 'parameters'; distinguish them by kind
+        val locatorSourceExtensionFunction = locatorFunctions
             .firstOrNull { symbol ->
                 val owner = symbol.owner
-                owner.extensionReceiverParameter?.type?.isModifierType() == true &&
-                    owner.valueParameters.singleOrNull()?.type == pluginContext.irBuiltIns.longType
+                owner.extensionReceiverParameter()?.type?.isModifierType() == true &&
+                    owner.regularParameters().singleOrNull()?.type == pluginContext.irBuiltIns.longType
             }
-        val locatorSourceFactoryFunction = pluginContext
-            .referenceFunctions(
-                CallableId(
-                    FqName("dev.codelocator.runtime.android"),
-                    Name.identifier("locatorSource"),
-                ),
-            )
+        val locatorSourceFactoryFunction = locatorFunctions
             .firstOrNull { symbol ->
                 val owner = symbol.owner
-                owner.extensionReceiverParameter == null &&
-                    owner.valueParameters.singleOrNull()?.type == pluginContext.irBuiltIns.longType &&
+                owner.extensionReceiverParameter() == null &&
+                    owner.regularParameters().singleOrNull()?.type == pluginContext.irBuiltIns.longType &&
                     owner.returnType.isModifierType()
             }
 
@@ -70,58 +70,42 @@ class ComposeLocatorIrGenerationExtension(
                         val column = file.fileEntry.getColumnNumber(expression.startOffset) + 1
                         val relativePath = file.fileEntry.name.stableRelativePath()
                         val sourceId = stableSourceId("$relativePath:$line:$column:${owner.name.asString()}")
-                        val modifierParameterIndex = owner.valueParameters.indexOfFirst { it.type.isModifierType() }
-                        val currentModifier = modifierParameterIndex
-                            .takeIf { it >= 0 }
-                            ?.let(expression::getValueArgument)
+                        val modifierParameter = owner.regularParameters()
+                            .firstOrNull { it.type.isModifierType() }
+                        val currentModifier = modifierParameter
+                            ?.let { expression.arguments.getOrNull(it.indexInParameters) }
 
                         var injected = false
                         var injectionKind = "none"
                         if (
                             locatorSourceExtensionFunction != null &&
+                            modifierParameter != null &&
                             currentModifier != null &&
                             currentModifier.type.isModifierType()
                         ) {
-                            val sourceCall = IrCallImpl.fromSymbolOwner(
-                                startOffset = expression.startOffset,
-                                endOffset = expression.endOffset,
-                                type = currentModifier.type,
-                                symbol = locatorSourceExtensionFunction,
-                            ).apply {
-                                extensionReceiver = currentModifier
-                                putValueArgument(
-                                    0,
-                                    IrConstImpl.long(
-                                        startOffset = expression.startOffset,
-                                        endOffset = expression.endOffset,
-                                        type = pluginContext.irBuiltIns.longType,
-                                        value = sourceId,
-                                    ),
-                                )
-                            }
-                            expression.putValueArgument(modifierParameterIndex, sourceCall)
+                            val sourceCall = createLocatorSourceCall(
+                                expression = expression,
+                                returnType = currentModifier.type,
+                                function = locatorSourceExtensionFunction,
+                                modifier = currentModifier,
+                                sourceId = sourceId,
+                                pluginContext = pluginContext,
+                            )
+                            expression.arguments[modifierParameter.indexInParameters] = sourceCall
                             injected = true
                             injectionKind = "modifier"
-                        } else if (modifierParameterIndex >= 0 && locatorSourceFactoryFunction != null) {
-                            val sourceCall = IrCallImpl.fromSymbolOwner(
-                                startOffset = expression.startOffset,
-                                endOffset = expression.endOffset,
-                                type = owner.valueParameters[modifierParameterIndex].type,
-                                symbol = locatorSourceFactoryFunction,
-                            ).apply {
-                                putValueArgument(
-                                    0,
-                                    IrConstImpl.long(
-                                        startOffset = expression.startOffset,
-                                        endOffset = expression.endOffset,
-                                        type = pluginContext.irBuiltIns.longType,
-                                        value = sourceId,
-                                    ),
-                                )
-                            }
-                            expression.putValueArgument(modifierParameterIndex, sourceCall)
+                        } else if (modifierParameter != null && locatorSourceFactoryFunction != null) {
+                            val sourceCall = createLocatorSourceCall(
+                                expression = expression,
+                                returnType = modifierParameter.type,
+                                function = locatorSourceFactoryFunction,
+                                modifier = null,
+                                sourceId = sourceId,
+                                pluginContext = pluginContext,
+                            )
+                            expression.arguments[modifierParameter.indexInParameters] = sourceCall
                             expression.clearDefaultMaskBit(
-                                parameterIndex = modifierParameterIndex,
+                                parameter = modifierParameter,
                                 pluginContext = pluginContext,
                             )
                             injected = true
@@ -144,6 +128,42 @@ class ComposeLocatorIrGenerationExtension(
             )
         }
         writeReport(records)
+    }
+
+    /** Builds the locator call, writing receiver and sourceId at Kotlin 2.2+ unified parameter indices */
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
+    private fun createLocatorSourceCall(
+        expression: IrCall,
+        returnType: IrType,
+        function: org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol,
+        modifier: IrExpression?,
+        sourceId: Long,
+        pluginContext: IrPluginContext,
+    ): IrCall {
+        // Kotlin 2.4: constructor and indicator are internal; accessed via the official migration-period opt-in
+        @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
+        return IrCallImpl(
+            IrElementConstructorIndicator,
+            expression.startOffset,
+            expression.endOffset,
+            returnType,
+            expression.origin,
+            function,
+            null,
+        ).apply {
+            // the internal constructor does not preallocate arguments; pad to the parameters count first
+            while (arguments.size < function.owner.parameters.size) arguments.add(null)
+            function.owner.extensionReceiverParameter()?.let { receiver ->
+                arguments[receiver.indexInParameters] = modifier
+            }
+            val longParameter = function.owner.regularParameters().single()
+            arguments[longParameter.indexInParameters] = IrConstImpl.long(
+                startOffset = expression.startOffset,
+                endOffset = expression.endOffset,
+                type = pluginContext.irBuiltIns.longType,
+                value = sourceId,
+            )
+        }
     }
 
     private fun shouldProcess(file: IrFile): Boolean {
@@ -207,54 +227,66 @@ class ComposeLocatorIrGenerationExtension(
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private fun IrCall.clearDefaultMaskBit(
-        parameterIndex: Int,
+        parameter: IrValueParameter,
         pluginContext: IrPluginContext,
     ): Boolean {
-        val maskParameterIndex = defaultMaskArgumentIndex(
-            parameterIndex = parameterIndex,
+        val owner = symbol.owner
+        val maskParameter = defaultMaskParameter(
+            parameter = parameter,
             pluginContext = pluginContext,
         ) ?: return false
-        val current = getValueArgument(maskParameterIndex) as? IrConst<*> ?: return false
-        val currentValue = current.value as? Int ?: return false
-        val nextValue = currentValue and (1 shl (parameterIndex % 32)).inv()
+        val current = arguments.getOrNull(maskParameter.indexInParameters) as? IrConst ?: return false
+        val currentValue = (current as? IrConstImpl)?.value as? Int ?: return false
+        // mask bit order follows old valueParameters indices (2.4 removed indexInOldValueParameters; count manually)
+        val nextValue = currentValue and (1 shl (owner.indexInOldValueParameters(parameter) % 32)).inv()
         if (nextValue == currentValue) return false
-        putValueArgument(
-            maskParameterIndex,
-            IrConstImpl.int(
-                startOffset = current.startOffset,
-                endOffset = current.endOffset,
-                type = pluginContext.irBuiltIns.intType,
-                value = nextValue,
-            ),
+        arguments[maskParameter.indexInParameters] = IrConstImpl.int(
+            startOffset = current.startOffset,
+            endOffset = current.endOffset,
+            type = pluginContext.irBuiltIns.intType,
+            value = nextValue,
         )
         return true
     }
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
-    private fun IrCall.defaultMaskArgumentIndex(
-        parameterIndex: Int,
+    private fun IrCall.defaultMaskParameter(
+        parameter: IrValueParameter,
         pluginContext: IrPluginContext,
-    ): Int? {
-        val maskSlot = parameterIndex / 32
-        val namedDefaultMasks = symbol.owner.valueParameters
-            .mapIndexed { index, parameter -> index to parameter }
-            .filter { (_, parameter) ->
-                parameter.type == pluginContext.irBuiltIns.intType &&
-                    parameter.name.asString().contains("default", ignoreCase = true)
+    ): IrValueParameter? {
+        val owner = symbol.owner
+        val maskSlot = owner.indexInOldValueParameters(parameter) / 32
+        val namedDefaultMasks = owner.parameters
+            .filter { candidate ->
+                candidate.type == pluginContext.irBuiltIns.intType &&
+                    candidate.name.asString().contains("default", ignoreCase = true)
             }
-        namedDefaultMasks.getOrNull(maskSlot)?.first?.let { return it }
+        namedDefaultMasks.getOrNull(maskSlot)?.let { return it }
 
         if (maskSlot != 0) return null
-        return (0 until valueArgumentsCount)
-            .asSequence()
-            .map { index -> index to symbol.owner.valueParameters.getOrNull(index) }
-            .filter { (index, parameter) ->
-                parameter?.type == pluginContext.irBuiltIns.intType &&
-                    getValueArgument(index) is IrConst<*>
+        return owner.parameters
+            .lastOrNull { candidate ->
+                candidate.type == pluginContext.irBuiltIns.intType &&
+                    arguments.getOrNull(candidate.indexInParameters) is IrConst
             }
-            .lastOrNull()
-            ?.first
     }
+}
+
+/** Kotlin 2.2+: find the receiver parameter in 'parameters' by kind */
+private fun IrFunction.extensionReceiverParameter(): IrValueParameter? {
+    return parameters.firstOrNull { it.kind == IrParameterKind.ExtensionReceiver }
+}
+
+/** Only regular value parameters (old valueParameters semantics) */
+private fun IrFunction.regularParameters(): List<IrValueParameter> {
+    return parameters.filter { it.kind == IrParameterKind.Regular }
+}
+
+/** Old valueParameters index: number of Regular parameters before it in 'parameters' (official property removed in 2.4) */
+private fun IrFunction.indexInOldValueParameters(parameter: IrValueParameter): Int {
+    return parameters.asSequence()
+        .take(parameter.indexInParameters)
+        .count { it.kind == IrParameterKind.Regular }
 }
 
 private fun IrType.isModifierType(): Boolean {
@@ -274,7 +306,7 @@ private fun IrFunction.fqNameForLocator(): String {
 }
 
 private fun IrFunction.isComposableCallTarget(): Boolean {
-    return hasComposeAnnotation() || valueParameters.any { parameter ->
+    return hasComposeAnnotation() || parameters.any { parameter ->
         parameter.type.classFqName?.asString() == "androidx.compose.runtime.Composer"
     }
 }

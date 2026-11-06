@@ -18,7 +18,8 @@ class ComposeLocatorTeamPlugin : Plugin<Project> {
             }
         }
 
-        project.pluginManager.apply("io.github.nianzixin.compose-locator")
+        // Apply the core plugin by class: applying by id needs plugin-marker resolution from a repository, which fails in on-demand (applied script) setups
+        project.pluginManager.apply(ComposeLocatorPlugin::class.java)
     }
 
     private fun addRuntimeDependencies(
@@ -54,7 +55,7 @@ class ComposeLocatorTeamPlugin : Plugin<Project> {
             dependency.group == "io.github.nianzixin" && dependency.name == "locator-runtime-android"
         } || configuration.dependencies.any { dependency ->
             dependency is ProjectDependency &&
-                dependency.dependencyProject.path == ":locator-runtime-android"
+                dependency.path == ":locator-runtime-android"
         }
         if (alreadyAdded) return
 

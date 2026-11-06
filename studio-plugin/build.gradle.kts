@@ -10,8 +10,18 @@ kotlin {
     jvmToolchain(17)
 }
 
-val androidStudioHome = file("/Applications/Android Studio.app/Contents")
-val androidStudioLib = fileTree(androidStudioHome.resolve("lib")) {
+// Prefer compiling against the real local Android Studio platform so stubs cannot mismatch runtime linkage.
+// If the IDE is installed elsewhere, set codelocator.studio.home=<IDE home> in ~/.gradle/gradle.properties
+// or pass -Pcodelocator.studio.home=...; falls back to stubs otherwise (linkage may mismatch at runtime)
+val androidStudioHome = providers.gradleProperty("codelocator.studio.home")
+    .map(::file)
+    .orElse(
+        listOf(
+            file("/Applications/Android Studio.app/Contents"),
+            file("C:/Program Files/Android/Android Studio"),
+        ).firstOrNull { it.isDirectory } ?: file("/Applications/Android Studio.app/Contents")
+    )
+val androidStudioLib = fileTree(androidStudioHome.get().resolve("lib")) {
     include("*.jar")
 }
 

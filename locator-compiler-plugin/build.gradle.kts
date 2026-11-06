@@ -14,7 +14,7 @@ java {
 }
 
 dependencies {
-    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
+    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.21")
     implementation(kotlin("stdlib"))
 }
 
