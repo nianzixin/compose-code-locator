@@ -18,13 +18,13 @@ Compose 布局定位工具：在 Android Studio 插件里截取设备屏幕，�
 
 ### 1. 安装 Studio 插件（每个 AS 装一次）
 
-不用找发版人要文件，直接浏览器打开下面的地址下载 zip（项目 Public，匿名可下）：
+用浏览器打开下面的地址下载 zip（项目为 Public，支持匿名下载）：
 
 ```
 http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-studio-plugin/0.1.5/compose-code-locator-0.1.5.zip
 ```
 
-各人在 Android Studio 里 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，装完重启 AS。
+在 Android Studio 里通过 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，安装后重启 AS。
 发版脚本会自动把 Studio 插件 zip 传到上面的地址，升级版本后换 URL 里的版本号即可。
 
 ### 2. 配置项目
@@ -83,23 +83,22 @@ if (isDebugLocatorBuild) {
 
 ### 3. 日常使用
 
-1. 跑 debug 包到设备（运行时随 debug 包自启，无需额外操作）
-2. AS 右侧打开 **Compose Code Locator** 工具窗口
-3. 选中设备，点 **抓取**，点击截图上的任意元素
-4. 右侧候选列表选目标，双击跳转源码
+1. 在设备上运行 debug 包（运行时随 debug 包自启，无需额外操作）
+2. 在 AS 右侧打开 **Compose Code Locator** 工具窗口
+3. 选择设备并点击 **抓取**，然后点击截图中的任意元素
+4. 在右侧候选列表中选择目标，双击跳转源码
 
 注意：
 - clean 后重新 build，下次点选会自动加载新索引；点“刷新索引”按钮可手动强制刷新，这两种情况都不需要重启 AS
 
 ## 发版流程（维护者）
 
-前置：JDK 17（系统默认高版本 JDK 会导致 Kotlin 编译失败；路径按本机 JDK 17 实际位置调整）。
-首次克隆需执行一次 `git config core.hooksPath .githooks` 启用提交校验：
-README 里的版本号（接入 classpath、表格、Studio 插件下载 URL）与代码不一致会被拒绝提交。
+前置：JDK 17（系统默认高版本 JDK 会导致 Kotlin 编译失败）。在本机全局 `~/.gradle/gradle.properties` 配一次
+`org.gradle.java.home=<JDK 17 路径>`（推荐用 AS 自带的 JBR 17），构建脚本里不再写死任何机器路径。
+首次克隆后需执行一次 `git config core.hooksPath .githooks` 启用提交校验：
+若 README 里的版本号（接入 classpath、表格、Studio 插件下载 URL）与代码不一致，提交会被拒绝。
 
 ```bash
-export JAVA_HOME="H:/Cache/android/gradle/jdks/eclipse_adoptium-17-amd64-windows.2"
-
 # 0. 版本号 +1：Maven 三件套共用一个版本号，Studio 插件独立版本号（规则见本节末尾），
 #    改动分布在各模块 build.gradle.kts 与 studio-plugin 的 pluginVersion
 
