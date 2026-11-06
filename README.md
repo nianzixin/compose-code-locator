@@ -25,7 +25,7 @@ http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-s
 ```
 
 各人在 Android Studio 里 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，装完重启 AS。
-zip 由发版脚本自动上传（见下方发版流程），升级版本后换 URL 里的版本号即可。
+发版脚本会自动把 Studio 插件 zip 传到上面的地址，升级版本后换 URL 里的版本号即可。
 
 ### 2. 配置项目
 
