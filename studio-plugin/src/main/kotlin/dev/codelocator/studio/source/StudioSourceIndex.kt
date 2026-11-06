@@ -9,20 +9,62 @@ class StudioSourceIndex(
     private val projectRoot: File,
     private val maxLoadedShards: Int = 16,
 ) {
-    private val indexRoots by lazy { findIndexRoots() }
-    private val sourceToShard by lazy { loadSourceIdIndex() }
+    // 索引缓存：首次使用时加载，之后通过文件时间戳自动失效或 refresh() 手动刷新
+    private var indexRoots: List<File>? = null
+    private var sourceToShard: Map<Long, String> = emptyMap()
+
+    // 已加载缓存对应的 source-id-index.tsv 最新修改时间，变化即视为索引已重建
+    private var loadedStamp: Long = -1L
     private val shardCache = object : LinkedHashMap<String, Map<Long, SourceLocation>>(maxLoadedShards, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Map<Long, SourceLocation>>?): Boolean {
             return size > maxLoadedShards
         }
     }
 
+    /**
+     * 清空索引缓存，下次解析时重新扫描索引目录
+     */
+    @Synchronized
+    fun refresh() {
+        indexRoots = null
+        sourceToShard = emptyMap()
+        shardCache.clear()
+        loadedStamp = -1L
+    }
+
+    /**
+     * 返回当前索引规模描述，用于界面状态提示
+     */
+    @Synchronized
+    fun describeState(): String {
+        ensureFresh()
+        val roots = indexRoots.orEmpty()
+        if (roots.isEmpty()) {
+            return "Studio index not found under ${projectRoot.absolutePath}; build/sync the target project first."
+        }
+        return "Studio index loaded: ${sourceToShard.size} ids, ${roots.size} roots."
+    }
+
     @Synchronized
     fun resolve(sourceId: Long?): SourceLocation? {
         sourceId ?: return null
+        ensureFresh()
         val shard = sourceToShard[sourceId] ?: return null
         val shardEntries = shardCache.getOrPut(shard) { loadShard(shard) }
         return shardEntries[sourceId]?.takeIf { it.isNavigable }
+    }
+
+    /**
+     * 索引文件被重建（clean/build/换版本）后自动重载，无需重启 AS
+     */
+    private fun ensureFresh() {
+        val roots = indexRoots ?: findIndexRoots().also { indexRoots = it }
+        val stamp = roots.maxOfOrNull { it.resolve("source-id-index.tsv").lastModified() } ?: 0L
+        if (stamp != loadedStamp) {
+            sourceToShard = loadSourceIdIndex()
+            shardCache.clear()
+            loadedStamp = stamp
+        }
     }
 
     fun resolve(candidate: dev.codelocator.studio.model.HitCandidate): dev.codelocator.studio.model.HitCandidate {
@@ -37,14 +79,16 @@ class StudioSourceIndex(
     @Synchronized
     fun resolutionHint(sourceId: Long?): String {
         sourceId ?: return "runtime did not provide sourceId; rebuild/install a debug app with Compose Locator enabled."
-        if (indexRoots.isEmpty()) {
+        ensureFresh()
+        val roots = indexRoots.orEmpty()
+        if (roots.isEmpty()) {
             return "Studio index not found under ${projectRoot.absolutePath}; build/sync the target project first."
         }
         if (sourceToShard.isEmpty()) {
             return "Studio index is empty under ${projectRoot.absolutePath}; run the Compose Locator Gradle tasks again."
         }
         val shard = sourceToShard[sourceId]
-            ?: return "sourceId not found in Studio index (${sourceToShard.size} ids, ${indexRoots.size} roots); app APK and IDE project are likely out of sync."
+            ?: return "sourceId not found in Studio index (${sourceToShard.size} ids, ${roots.size} roots); app APK and IDE project are likely out of sync."
         val location = resolve(sourceId)
         return if (location?.isNavigable == true) {
             "resolved by Studio index"
@@ -54,7 +98,7 @@ class StudioSourceIndex(
     }
 
     private fun loadSourceIdIndex(): Map<Long, String> {
-        return indexRoots
+        return indexRoots.orEmpty()
             .asSequence()
             .map { it.resolve("source-id-index.tsv") }
             .filter(File::isFile)
@@ -72,7 +116,7 @@ class StudioSourceIndex(
     }
 
     private fun loadShard(shard: String): Map<Long, SourceLocation> {
-        return indexRoots
+        return indexRoots.orEmpty()
             .asSequence()
             .map { it.resolve("shards/$shard.jsonl") }
             .filter(File::isFile)

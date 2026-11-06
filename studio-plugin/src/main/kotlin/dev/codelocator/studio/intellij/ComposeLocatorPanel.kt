@@ -126,6 +126,20 @@ class ComposeLocatorPanel(
                     }
                 }
             })
+
+            add(JButton("刷新索引").apply {
+                addActionListener {
+                    statusLabel.text = "Refreshing source index..."
+                    runInBackground {
+                        val state = toolWindow.refreshSourceIndex()
+                        runOnUi {
+                            statusLabel.text = state
+                        }
+                    }.onFailureUi { error ->
+                        statusLabel.text = "Index refresh failed: ${error.message}"
+                    }
+                }
+            })
         }
 
         candidateList.addListSelectionListener {

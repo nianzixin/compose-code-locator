@@ -64,6 +64,14 @@ class LocatorToolWindow(
         return sourceIndex.resolutionHint(candidate.sourceId)
     }
 
+    /**
+     * 重新扫描磁盘上的 Studio 索引，clean/build 之后无需重启 AS
+     */
+    fun refreshSourceIndex(): String {
+        sourceIndex.refresh()
+        return sourceIndex.describeState()
+    }
+
     fun disconnect() {
         studioService?.disconnect()
     }
