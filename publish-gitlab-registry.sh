@@ -41,4 +41,24 @@ while IFS= read -r file; do
 done < <(find "$MAVEN_DIR" -type f | sort)
 
 echo "已上传 $count 个文件到 Package Registry，失败 $fail 个"
+
+# Studio 插件 zip 走 Generic 包仓库：项目 Public，团队成员可匿名下载安装
+GENERIC_BASE="${GITLAB_GENERIC_URL:-http://192.168.5.254/api/v4/projects/513/packages/generic}"
+zip_file=$(find studio-plugin/build/distributions -maxdepth 1 -name "compose-code-locator-*.zip" 2>/dev/null | head -1 || true)
+if [ -n "$zip_file" ]; then
+    zip_name="$(basename "$zip_file")"
+    zip_version="${zip_name#compose-code-locator-}"
+    zip_version="${zip_version%.zip}"
+    url="$GENERIC_BASE/compose-code-locator-studio-plugin/$zip_version/$zip_name"
+    code=$(curl -s -o /dev/null -w "%{http_code}" --user "$DEPLOY_USER:$DEPLOY_TOKEN" --upload-file "$zip_file" "$url")
+    if [ "$code" = "200" ] || [ "$code" = "201" ]; then
+        echo "Studio 插件已上传: $url"
+    else
+        echo "Studio 插件上传失败 ($code): $url" >&2
+        exit 1
+    fi
+else
+    echo "未找到 studio-plugin zip，跳过（先执行 ./gradlew :studio-plugin:buildPlugin）"
+fi
+
 [ "$fail" -eq 0 ]

@@ -17,8 +17,14 @@ Compose 布局定位工具：在 Android Studio 插件里截取设备屏幕，�
 
 ### 1. 安装 Studio 插件（每个 AS 装一次）
 
-发版人把 `studio-plugin/build/distributions/compose-code-locator-0.1.5.zip`（GitLab Releases 或本地构建产物）发给团队成员，
+不用找发版人要文件，直接浏览器打开下面的地址下载 zip（项目 Public，匿名可下）：
+
+```
+http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-studio-plugin/0.1.5/compose-code-locator-0.1.5.zip
+```
+
 各人在 Android Studio 里 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，装完重启 AS。
+发版脚本会自动把 Studio 插件 zip 传到上面的地址，升级版本后换 URL 里的版本号即可。
 
 ### 2. 配置项目
 
@@ -95,9 +101,10 @@ export JAVA_HOME="H:/Cache/android/gradle/jdks/eclipse_adoptium-17-amd64-windows
   :locator-gradle-plugin:publish
 
 # 2. 打 Studio 插件 zip
-./gradlew :studio-plugin:buildStudioPluginZip
+./gradlew :studio-plugin:buildPlugin
 
-# 3. 上传产物到 GitLab Package Registry（认证读仓库根目录 .deployToken，已 gitignore，团队成员匿名即可下载）
+# 3. 上传全部产物到 GitLab Package Registry（Maven 产物 + Studio 插件 zip，
+#    认证读仓库根目录 .deployToken，已 gitignore，团队成员匿名即可下载）
 bash publish-gitlab-registry.sh
 
 # 备选：产物也可推到 maven 分支（git worktree 方式，不影响工作区）
