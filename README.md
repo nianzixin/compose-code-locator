@@ -93,8 +93,6 @@ if (isDebugLocatorBuild) {
 
 ## 发版流程（维护者）
 
-前置：JDK 17 或以上（Gradle 9 运行期最低要求，直接用系统默认 JDK 即可；模块编译目标 17 由各模块
-toolchain 保证，不受运行 JDK 版本影响）。已实测系统默认 JDK 25 下全量编译通过。
 首次克隆后需执行一次 `git config core.hooksPath .githooks` 启用提交校验：
 若 README 里的版本号（接入 classpath、表格、Studio 插件下载 URL）与代码不一致，提交会被拒绝。
 
@@ -107,7 +105,8 @@ toolchain 保证，不受运行 JDK 版本影响）。已实测系统默认 JDK 
   :locator-compiler-plugin:publishMavenPublicationToComposeLocatorStagingRepository \
   :locator-gradle-plugin:publish
 
-# 2. 打 Studio 插件 zip
+# 2. 打 Studio 插件 zip（编译对本机真实 AS 平台；路径不在常见位置时用
+#    -Pcodelocator.studio.home=<AS 安装目录> 或全局 gradle.properties 指定）
 ./gradlew :studio-plugin:buildPlugin
 
 # 3. 上传全部产物到 GitLab Package Registry（Maven 产物 + Studio 插件 zip，

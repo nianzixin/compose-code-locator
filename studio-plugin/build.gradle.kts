@@ -10,13 +10,18 @@ kotlin {
     jvmToolchain(17)
 }
 
-// 优先使用本机真实 Android Studio 平台编译，避免 stubs 与运行时链接不符
-val androidStudioHome = listOf(
-    file("/Applications/Android Studio.app/Contents"),
-    file("H:/ide/androidstudio"),
-    file("C:/Program Files/Android/Android Studio"),
-).firstOrNull { it.isDirectory } ?: file("/Applications/Android Studio.app/Contents")
-val androidStudioLib = fileTree(androidStudioHome.resolve("lib")) {
+// 优先使用本机真实 Android Studio 平台编译，避免 stubs 与运行时链接不符。
+// 安装路径不在常见位置时，在全局 ~/.gradle/gradle.properties 配 codelocator.studio.home=<AS 安装目录>，
+// 或命令行传 -Pcodelocator.studio.home=...；都找不到才退回 stubs 编译（产物链接与运行时可能不符）
+val androidStudioHome = providers.gradleProperty("codelocator.studio.home")
+    .map(::file)
+    .orElse(
+        listOf(
+            file("/Applications/Android Studio.app/Contents"),
+            file("C:/Program Files/Android/Android Studio"),
+        ).firstOrNull { it.isDirectory } ?: file("/Applications/Android Studio.app/Contents")
+    )
+val androidStudioLib = fileTree(androidStudioHome.get().resolve("lib")) {
     include("*.jar")
 }
 
