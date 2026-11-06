@@ -93,8 +93,8 @@ if (isDebugLocatorBuild) {
 
 ## 发版流程（维护者）
 
-前置：JDK 17（系统默认高版本 JDK 会导致 Kotlin 编译失败）。在本机全局 `~/.gradle/gradle.properties` 配一次
-`org.gradle.java.home=<JDK 17 路径>`（推荐用 AS 自带的 JBR 17），构建脚本里不再写死任何机器路径。
+前置：JDK 17 或以上（Gradle 9 运行期最低要求，直接用系统默认 JDK 即可；模块编译目标 17 由各模块
+toolchain 保证，不受运行 JDK 版本影响）。已实测系统默认 JDK 25 下全量编译通过。
 首次克隆后需执行一次 `git config core.hooksPath .githooks` 启用提交校验：
 若 README 里的版本号（接入 classpath、表格、Studio 插件下载 URL）与代码不一致，提交会被拒绝。
 
