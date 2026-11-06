@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# 提交前强制校验 README 版本号与代码一致：
+#   Maven 三件套版本 = 根 build.gradle.kts 的 allprojects version（覆盖 compiler-plugin/runtime/runtime-android）
+#   同时 locator-gradle-plugin 模块自身的 version 必须与根一致
+#   Studio 插件版本 = studio-plugin/build.gradle.kts 的 version
+# 版本号发布时要改多处，漏改任一处即拒绝提交
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# 本次提交未涉及版本号来源文件或 README 时直接跳过，避免每次提交都跑校验
+WATCHED="build.gradle.kts
+locator-gradle-plugin/build.gradle.kts
+studio-plugin/build.gradle.kts
+README.md"
+changed=$(git diff --cached --name-only)
+touched=0
+while IFS= read -r f; do
+    echo "$changed" | grep -qxF "$f" && touched=1 && break
+done <<< "$WATCHED"
+[ "$touched" -eq 0 ] && exit 0
+
+fail=0
+
+ver_of() {
+    # 取文件里第一行顶层 version = "x.y.z" 的值
+    grep -m1 '^[[:space:]]*version = "' "$1" | sed 's/.*"\([^"]*\)".*/\1/'
+}
+
+root_ver=$(ver_of build.gradle.kts)
+gp_ver=$(ver_of locator-gradle-plugin/build.gradle.kts)
+studio_ver=$(ver_of studio-plugin/build.gradle.kts)
+
+# 根 allprojects 版本与 gradle 插件模块版本必须一致，不一致先报这个
+if [ "$root_ver" != "$gp_ver" ]; then
+    echo "pre-commit: 版本不一致：根 build.gradle.kts 为 $root_ver，locator-gradle-plugin 为 $gp_ver" >&2
+    fail=1
+fi
+
+require() {
+    # $1=README 中必须存在的字面量  $2=失败提示
+    if ! grep -qF -- "$1" README.md; then
+        echo "pre-commit: README 版本未同步：$2（当前代码版本 $3）" >&2
+        fail=1
+    fi
+}
+
+require "io.github.nianzixin:locator-gradle-plugin:$root_ver" \
+    "接入代码 classpath 应为 locator-gradle-plugin:$root_ver" "$root_ver"
+require "| \`team-compose-locator\`（gradle 插件） | 接入项目构建，自动注入编译器插件 | $root_ver |" \
+    "组成部分表格 team-compose-locator 行版本列应为 $root_ver" "$root_ver"
+require "compose-code-locator-studio-plugin/$studio_ver/compose-code-locator-$studio_ver.zip" \
+    "Studio 插件下载 URL 应为 $studio_ver 版本" "$studio_ver"
+
+if [ "$fail" -ne 0 ]; then
+    echo "pre-commit: 请先同步 README.md 中的版本号再提交" >&2
+    exit 1
+fi

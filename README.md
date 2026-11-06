@@ -94,6 +94,8 @@ if (isDebugLocatorBuild) {
 ## 发版流程（维护者）
 
 前置：JDK 17（系统默认高版本 JDK 会导致 Kotlin 编译失败；路径按本机 JDK 17 实际位置调整）。
+首次克隆需执行一次 `git config core.hooksPath .githooks` 启用提交校验：
+README 里的版本号（接入 classpath、表格、Studio 插件下载 URL）与代码不一致会被拒绝提交。
 
 ```bash
 export JAVA_HOME="H:/Cache/android/gradle/jdks/eclipse_adoptium-17-amd64-windows.2"
