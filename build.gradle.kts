@@ -27,7 +27,7 @@ extra["publicGitHubUrl"] = publicGitHubUrl
 
 allprojects {
     group = publicGroupId
-    version = "0.1.3"
+    version = "0.1.2"
 }
 
 val studioPluginVerifierCli by configurations.creating {
