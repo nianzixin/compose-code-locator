@@ -7,7 +7,12 @@ open class ComposeLocatorExtension {
     var asmSourceMapOutput: String = "build/intermediates/composeLocator/asm-source-map.txt"
     var metadataOutput: String = "build/intermediates/composeLocator/metadata/compose-locator-metadata.json"
     var studioIndexOutput: String = "build/intermediates/composeLocator/studio-index/v1"
-    var sourceDirectories: List<String> = listOf("src/main/kotlin", "src/debug/kotlin")
+    var sourceDirectories: List<String> = listOf(
+        "src/main/kotlin",
+        "src/main/java",
+        "src/debug/kotlin",
+        "src/debug/java",
+    )
     var bytecodeInspectionOutput: String = "build/intermediates/composeLocator/inspection-report.txt"
     var bytecodeInstrumentationOutput: String = "build/intermediates/composeLocator/instrumentation-report.txt"
     var compilerPluginReportOutput: String = "build/intermediates/composeLocator/compiler-plugin-report.txt"
