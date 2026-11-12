@@ -36,7 +36,9 @@ class ComposeLocatorPanel(
 ) : JPanel(BorderLayout(8, 8)) {
     private val statusLabel = JBLabel("Idle")
     private val deviceComboBox = JComboBox<DeviceDescriptor>()
-    private val candidateModel = CollectionListModel<CandidateRow>()
+    // CollectionListModel 无参构造器在 AI-262 平台已移除（只剩带参构造器），
+    // 运行时解析不到 <init>()V 会沿父类链命中 protected 的 AbstractListModel.<init> 导致 IllegalAccessError
+    private val candidateModel = CollectionListModel(mutableListOf<CandidateRow>())
     private val candidateList = JBList(candidateModel).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
     }
