@@ -33,7 +33,7 @@ http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-s
 `app/build.gradle.kts`（整段拷到文件顶部，plugins 块之前）：
 
 ```kotlin
-// Compose Code Locator 按需加载：只有构建 debug 变体（assemble/install/bundle *Debug）时才启用，
+// Compose Code Locator 按需加载：只有构建 debug 变体（assemble/install/bundle/compile *Debug）时才启用，
 // 正式包打包、IDE 同步均不加载插件、不解析产物仓库，项目搬到无外网环境可正常出包
 buildscript {
     repositories {
@@ -45,9 +45,14 @@ buildscript {
             isAllowInsecureProtocol = true
         }
     }
+    // 判断条件必须包含 compile 任务：jugg 等增量构建工具内部直接调 compileDebugKotlin，
+    // 只匹配 assemble/install/bundle 会导致增量编译出的 APK 与 Studio 索引不同步，点击元素无法跳转
     val debugBuild = gradle.startParameter.taskNames
         .map { it.substringAfterLast(':') }
-        .any { (it.startsWith("assemble") || it.startsWith("install") || it.startsWith("bundle")) && it.endsWith("Debug") }
+        .any {
+            (it.startsWith("assemble") || it.startsWith("install") || it.startsWith("bundle") || it.startsWith("compile")) &&
+                (it.endsWith("Debug") || it.startsWith("compileDebug"))
+        }
     if (debugBuild) {
         dependencies {
             classpath("io.github.nianzixin:locator-gradle-plugin:0.1.2")
@@ -59,9 +64,13 @@ plugins {
     // 原有的插件声明保持不变，不要在这里声明 locator 插件
 }
 
+// 与上方 buildscript 的 debugBuild 判断保持同一口径，避免插件加载与 classpath 解析不一致
 val isDebugLocatorBuild = gradle.startParameter.taskNames
     .map { it.substringAfterLast(':') }
-    .any { (it.startsWith("assemble") || it.startsWith("install") || it.startsWith("bundle")) && it.endsWith("Debug") }
+    .any {
+        (it.startsWith("assemble") || it.startsWith("install") || it.startsWith("bundle") || it.startsWith("compile")) &&
+            (it.endsWith("Debug") || it.startsWith("compileDebug"))
+    }
 if (isDebugLocatorBuild) {
     apply(plugin = "io.github.nianzixin.team-compose-locator")
 }
@@ -90,6 +99,8 @@ if (isDebugLocatorBuild) {
 
 注意：
 - clean 后重新 build，下次点选会自动加载新索引；点“刷新索引”按钮可手动强制刷新，这两种情况都不需要重启 AS
+- 使用 jugg 等增量构建工具时，接入配置里的任务判断必须包含 compile 任务（见第 2 节），否则增量编译出的 APK 与 Studio 索引不同步，提示 "app APK and IDE project are likely out of sync" 且无法跳转；出现该提示后跑一次 `./gradlew :app:installDebug` 即可重新对齐
+- 候选列表里的 DecorView、LayoutNode、FillElement 等是框架/库代码节点，本身没有 sourceId，点到这些无法跳转属正常现象，跳转请选带 `文件名.kt:行号` 标签的候选
 
 ## 发版流程（维护者）
 
