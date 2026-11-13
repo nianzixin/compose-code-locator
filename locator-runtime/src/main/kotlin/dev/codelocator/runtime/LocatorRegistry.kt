@@ -46,14 +46,16 @@ class LocatorRegistry {
         private const val FLAG_AUTO_LAYOUT = 1 shl 2
         private const val FLAG_WINDOW_ROOT = 1 shl 3
 
+        // 排序口径：点谁跳谁。含点的候选里，面积最小的即视觉上最贴近用户点中位置的元素，
+        // 必须先于"是否可点击"参与排序——否则非 clickable 的小元素（如自定义导航条标签）
+        // 会被它背后可点击的大容器（列表行）遮蔽，点浮窗标签却跳到后面的 item
         val NODE_ORDER = compareByDescending<LocatorNode> { it.windowLayer }
             .thenBy { it.isWindowRoot() }
-            .thenByDescending { it.sourceId != null && it.isInteractiveSemantics() }
             .thenByDescending { it.sourceId != null }
+            .thenBy { it.screenBounds.area() }
             .thenByDescending { it.isInteractiveSemantics() }
             .thenByDescending { it.isSemantics() }
             .thenBy { it.isLayoutFallback() }
-            .thenBy { it.screenBounds.area() }
             .thenByDescending { it.zIndex }
             .thenBy { it.id }
 
