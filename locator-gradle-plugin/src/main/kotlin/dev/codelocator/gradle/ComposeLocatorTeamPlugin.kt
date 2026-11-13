@@ -75,9 +75,21 @@ class ComposeLocatorTeamPlugin : Plugin<Project> {
     private fun Project.resolveDependencyNotation(
         extension: ComposeLocatorTeamExtension,
     ): Any = when {
-        // Studio 插件 bootstrap 模式：优先使用释放到工程内的 runtime AAR 文件依赖，断网可用
-        composeLocatorBootstrapDir()?.let { File(it, ComposeLocatorBootstrap.RUNTIME_ARTIFACT_FILE_NAME) }?.isFile == true ->
-            files(composeLocatorBootstrapDir()!!.resolve(ComposeLocatorBootstrap.RUNTIME_ARTIFACT_FILE_NAME))
+        // Studio 插件 bootstrap 模式：优先使用释放到工程内的 runtime AAR 文件依赖，断网可用。
+        // AAR 文件依赖不带 pom 传递依赖，core（locator-runtime）必须以 jar 一并注入，否则运行时 NoClassDefFoundError
+        composeLocatorBootstrapDir()?.let { File(it, ComposeLocatorBootstrap.RUNTIME_ARTIFACT_FILE_NAME) }?.isFile == true -> {
+            val bootstrapDir = composeLocatorBootstrapDir()!!
+            val coreJar = File(bootstrapDir, ComposeLocatorBootstrap.RUNTIME_CORE_ARTIFACT_FILE_NAME)
+            if (coreJar.isFile) {
+                files(bootstrapDir.resolve(ComposeLocatorBootstrap.RUNTIME_ARTIFACT_FILE_NAME), coreJar)
+            } else {
+                logger.warn(
+                    "Compose Locator: bootstrap 目录缺少 ${ComposeLocatorBootstrap.RUNTIME_CORE_ARTIFACT_FILE_NAME}，" +
+                        "运行时 core 类不会进入 APK；请重新打开工程让 Studio 插件重新释放",
+                )
+                files(bootstrapDir.resolve(ComposeLocatorBootstrap.RUNTIME_ARTIFACT_FILE_NAME))
+            }
+        }
 
         extension.preferIncludedBuildRuntimeProject && rootProject.findProject(":locator-runtime-android") != null ->
             dependencies.project(mapOf("path" to ":locator-runtime-android"))

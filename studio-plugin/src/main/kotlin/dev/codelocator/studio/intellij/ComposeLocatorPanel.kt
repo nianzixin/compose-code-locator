@@ -400,7 +400,8 @@ private class ScreenshotCanvas(
     }
 
     override fun getPreferredSize(): Dimension {
-        val current = model ?: return preferredSize
+        // 无截图时返回默认尺寸；不能调 preferredSize（getPreferredSize 自身递归 → StackOverflowError 拖垮 EDT）
+        val current = model ?: return Dimension(DEFAULT_WIDTH, DEFAULT_HEIGHT)
         val scale = effectiveScale(current.image)
         return Dimension(
             (current.image.width * scale).toInt().coerceAtLeast(DEFAULT_WIDTH),

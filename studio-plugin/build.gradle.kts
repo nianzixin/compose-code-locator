@@ -157,11 +157,17 @@ val copyLocatorBootstrapArtifacts by tasks.registering(Copy::class) {
     val bootstrapJar = rootProject.file("locator-gradle-plugin/build/libs/locator-gradle-plugin-bootstrap.jar")
     dependsOn(gradle.includedBuild("locator-gradle-plugin").task(":bootstrapJar"))
     dependsOn(project(":locator-compiler-plugin").tasks.named("jar"))
+    dependsOn(project(":locator-runtime").tasks.named("jar"))
     dependsOn(project(":locator-runtime-android").tasks.named("bundleDebugAar"))
 
     from(bootstrapJar)
     from(rootProject.file("locator-compiler-plugin/build/libs")) {
         include("locator-compiler-plugin-*.jar")
+        exclude("*-sources.jar", "*-javadoc.jar")
+    }
+    // runtime core jar：AAR 文件依赖不带 pom 传递依赖，必须与 AAR 一起注入，否则 APK 缺 core 类直接崩溃
+    from(rootProject.file("locator-runtime/build/libs")) {
+        include("locator-runtime-*.jar")
         exclude("*-sources.jar", "*-javadoc.jar")
     }
     from(rootProject.file("locator-runtime-android/build/outputs/aar")) {
@@ -175,6 +181,7 @@ val copyLocatorBootstrapArtifacts by tasks.registering(Copy::class) {
             fileName == bootstrapJar.name -> "locator-gradle-plugin-bootstrap.jar"
             fileName.startsWith("locator-compiler-plugin") -> "locator-compiler-plugin.jar"
             fileName.startsWith("locator-runtime-android") -> "locator-runtime-android.aar"
+            fileName.startsWith("locator-runtime") -> "locator-runtime.jar"
             else -> fileName
         }
     }
@@ -207,6 +214,7 @@ tasks.register("verifyStudioPluginPackaging") {
         listOf(
             "locator-gradle-plugin-bootstrap.jar",
             "locator-compiler-plugin.jar",
+            "locator-runtime.jar",
             "locator-runtime-android.aar",
         ).forEach { artifact ->
             check("compose-code-locator/lib/$artifact" in entries) {

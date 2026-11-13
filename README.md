@@ -35,7 +35,8 @@ http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-s
 
 1. 把构建期产物（Gradle 插件 bootstrap jar、Kotlin 编译器插件 jar、runtime AAR）释放到工程的
    `.gradle/compose-locator/`（内网、离线均可用，不依赖任何远程仓库）
-2. 写全局 init script 到 `~/.gradle/init.d/compose-code-locator.init.gradle.kts`
+2. 写全局 init script 到 `$GRADLE_USER_HOME/init.d/compose-code-locator.init.gradle.kts`
+   （GRADLE_USER_HOME 环境变量优先，未设置时为 `~/.gradle`；Gradle 只从该目录加载 init script）
 3. debug 构建（assemble/install/bundle/compile *Debug，判断口径与旧手动配置一致，jugg 增量构建兼容）
    自动注入 Gradle 插件：注入编译器插件、添加 runtime 文件依赖（`debugImplementation`）、生成 Studio 索引
 4. 项目 minSdk < 26 时自动在 `src/debug/AndroidManifest.xml`（不存在才创建）写入

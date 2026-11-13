@@ -2,6 +2,8 @@ package dev.codelocator.studio.intellij
 
 import com.intellij.openapi.diagnostic.Logger
 import java.io.File
+import java.net.URL
+import java.net.URLDecoder
 import java.security.MessageDigest
 
 /**
@@ -46,6 +48,7 @@ object ComposeLocatorBootstrapInstaller {
     private val ARTIFACT_NAMES = listOf(
         "locator-gradle-plugin-bootstrap.jar",
         "locator-compiler-plugin.jar",
+        "locator-runtime.jar",
         "locator-runtime-android.aar",
     )
 
@@ -99,11 +102,30 @@ object ComposeLocatorBootstrapInstaller {
      * 找不到产物时返回 null（开发环境无此结构）
      */
     private fun locatePluginLibDir(): File? {
-        val codeSource = ComposeLocatorBootstrapInstaller::class.java.protectionDomain.codeSource ?: return null
-        val codeFile = runCatching { File(codeSource.location.toURI()) }.getOrNull() ?: return null
-        val libDir = if (codeFile.isFile) codeFile.parentFile else codeFile
+        // 主路径：protectionDomain.codeSource；新平台 nested 类加载下 codeSource/location 可能为 null（平台类型，显式判空）
+        val codeSource = ComposeLocatorBootstrapInstaller::class.java.protectionDomain.codeSource
+        val fromCodeSource = codeSource?.location?.let(::pluginJarFile)?.parentFile
+        // 兜底：classloader 里 plugin.xml 资源一定在插件 jar 内，其 URL 同样指向插件 jar，可走同一解析
+        val fromResource = ComposeLocatorBootstrapInstaller::class.java.classLoader
+            .getResource("META-INF/plugin.xml")?.let(::pluginJarFile)?.parentFile
+        val libDir = fromCodeSource ?: fromResource ?: return null
         if (!ARTIFACT_NAMES.all { File(libDir, it).isFile }) return null
         return libDir
+    }
+
+    /**
+     * 解析本类所在插件 jar 的本地文件路径。
+     * 不能走 File(URI)：新平台（AS 2023+）用 nested:/jar: 协议 URL 加载插件 jar，
+     * File(URI) 对这些 scheme 直接抛异常；手动剥掉协议前缀与 "!/" 后再还原为本地路径
+     */
+    private fun pluginJarFile(location: URL): File? {
+        // nested:/E:/.../lib/studio-plugin-x.jar/!/dev/... 或 jar:file:/E:/...jar!/... 或 file:/E:/...jar
+        val rawPath = location.toString().substringBefore("!/")
+            .removePrefix("jar:").removePrefix("nested:")
+            .removePrefix("file:")
+        if (rawPath.isBlank() || rawPath.endsWith("/")) return null
+        val jarFile = File(URLDecoder.decode(rawPath, Charsets.UTF_8))
+        return if (jarFile.isFile) jarFile else null
     }
 
     /** 产物指纹：对三个 jar/aar 的内容做摘要拼接，Studio 插件升级（产物变化）时触发重释放 */
@@ -133,11 +155,26 @@ object ComposeLocatorBootstrapInstaller {
             )
             return
         }
-        val initDir = File(System.getProperty("user.home"), USER_INIT_SCRIPT_DIR)
+        val initDir = File(gradleUserHome(), USER_INIT_SCRIPT_DIR)
         val target = File(initDir, INIT_SCRIPT_NAME)
         target.parentFile?.mkdirs()
         if (!target.isFile || target.readText() != template) {
             target.writeText(template)
             LOG.info("Compose Locator global init script written to ${target.absolutePath}")
-        }    }
+        }
+    }
+
+    /**
+     * Gradle 用户主目录：init script 的 init.d 只会被 Gradle 从 GRADLE_USER_HOME 下加载。
+     * 优先取环境变量 GRADLE_USER_HOME（AS 常配置自定义目录，如 E:\Cache\AndroidStudio\.gradle），
+     * 未设置才回落到 ~/.gradle；只写 user.home 会让注入在自定义 GRADLE_USER_HOME 下失效
+     */
+    private fun gradleUserHome(): File {
+        val env = System.getenv("GRADLE_USER_HOME")
+        return if (env.isNullOrBlank()) {
+            File(System.getProperty("user.home"), ".gradle")
+        } else {
+            File(env)
+        }
+    }
 }

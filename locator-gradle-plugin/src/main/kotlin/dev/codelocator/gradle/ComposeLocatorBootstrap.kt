@@ -18,6 +18,9 @@ object ComposeLocatorBootstrap {
     /** 释放到工程内的 runtime AAR 文件名（不含 -debug 后缀） */
     const val RUNTIME_ARTIFACT_FILE_NAME = "locator-runtime-android.aar"
 
+    /** 释放到工程内的 runtime core jar 文件名：AAR 文件依赖不带传递依赖，core 必须一并注入，否则运行时 NoClassDefFoundError */
+    const val RUNTIME_CORE_ARTIFACT_FILE_NAME = "locator-runtime.jar"
+
     /** runtime AAR 文件依赖判重时使用的基础文件名 */
     const val RUNTIME_ARTIFACT_FILE_BASE_NAME = "locator-runtime-android"
 }
