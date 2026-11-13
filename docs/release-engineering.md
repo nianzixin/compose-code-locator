@@ -131,3 +131,18 @@ Credential-dependent public publishing is driven by `.github/workflows/publish.y
 When changing Kotlin, AGP, Compose compiler, or Compose UI versions, update `docs/compatibility-matrix.json` and rerun the release gates before publishing.
 
 For planned dependency upgrades, also run `.github/workflows/compose-locator-compatibility.yml`. Keep the current published baseline as non-experimental and mark exploratory AGP/Kotlin/Compose lanes as experimental until they pass consistently.
+
+## Studio Plugin API Compatibility (stub-drift lesson)
+
+Studio 插件默认用 `src/intellijStubs/` 里的手写 stub 编译（`-Pcodelocator.studio.useStubs=true`）。
+stub 的方法签名只对齐编写时的 AS 版本，真实平台接口会随 AS 升级漂移，典型事故：
+2026.2 平台移除了 `Application.executeOnPooledThread(Runnable)`，导致插件 `projectOpened` 抛
+`NoSuchMethodError`（已改为普通 `Thread` 修复）。
+
+发版规则：
+
+1. 新增对 IntelliJ 平台 API 的调用前，先在本机真实 AS 安装目录验证该方法存在（编译时优先
+   `-Pcodelocator.studio.home` 指向真实 AS，避免纯 stubs 编译）
+2. 优先使用稳定 API 或普通 JDK 等价物（如后台执行直接用 `Thread`），不依赖仅从 stubs 推断的平台方法
+3. 发版后必须在真实 AS（目标 since-build 附近版本）打开一个工程做冒烟验证，`idea.log` 中
+   `grep codelocator` 无报错才算发完

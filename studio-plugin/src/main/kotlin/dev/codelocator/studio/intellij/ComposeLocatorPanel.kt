@@ -1,7 +1,6 @@
 package dev.codelocator.studio.intellij
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBLabel
@@ -288,16 +287,14 @@ class ComposeLocatorPanel(
 
     private fun runInBackground(block: () -> Unit): AsyncUiResult {
         val result = AsyncUiResult()
-        ApplicationManager.getApplication().executeOnPooledThread {
-            runCatching(block).onFailure { error ->
-                result.failure?.invoke(error)
-            }
+        IdeThreading.runInBackground(block) { error ->
+            result.failure?.invoke(error)
         }
         return result
     }
 
     private fun runOnUi(block: () -> Unit) {
-        ApplicationManager.getApplication().invokeLater(block)
+        IdeThreading.runOnUi(block)
     }
 
     private inner class AsyncUiResult {
