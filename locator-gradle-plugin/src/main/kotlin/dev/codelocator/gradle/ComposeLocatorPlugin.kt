@@ -66,6 +66,7 @@ class ComposeLocatorPlugin : Plugin<Project> {
             it.dependencyMetadataFiles.from(dependencyMetadataConfiguration)
             it.dependencyMetadataFiles.from(extractDependencyMetadataTask.flatMap { task -> task.outputDirectory })
             it.outputDirectory.set(project.layout.projectDirectory.dir(extension.studioIndexOutput))
+            it.projectRootDirectory.set(project.layout.projectDirectory)
         }
         metadataElementsConfiguration.outgoing.artifact(generateMetadataTask.flatMap { it.outputFile }) {
             it.builtBy(generateMetadataTask)
