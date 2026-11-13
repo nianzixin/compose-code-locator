@@ -44,11 +44,17 @@ Publish or mirror these coordinates into the team's internal Maven repository:
 ```text
 io.github.nianzixin:locator-runtime:0.1.1
 io.github.nianzixin:locator-runtime-android:0.1.1
-io.github.nianzixin:locator-compiler-plugin:0.1.1
+io.github.nianzixin:locator-compiler-plugin-kotlin-2.2:0.1.1
+io.github.nianzixin:locator-compiler-plugin-kotlin-2.4:0.1.1
 io.github.nianzixin:locator-gradle-plugin:0.1.1
 io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:0.1.1
 io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:0.1.1
 ```
+
+The compiler plugin publishes one artifact per supported Kotlin compiler line (`-PkotlinCompilerApi=2.2|2.4`).
+Staging release tasks publish the 2.2 variant by default; publish the 2.4 variant with
+`./gradlew :locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository -PkotlinCompilerApi=2.4`
+before packaging the Central bundle (CI does this automatically).
 
 The Gradle plugin marker artifacts are required so app builds can use:
 

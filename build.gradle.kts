@@ -2244,7 +2244,8 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine("Artifacts:")
                 appendLine("  io.github.nianzixin:locator-runtime:${project.version}")
                 appendLine("  io.github.nianzixin:locator-runtime-android:${project.version}")
-                appendLine("  io.github.nianzixin:locator-compiler-plugin:${project.version}")
+                appendLine("  io.github.nianzixin:locator-compiler-plugin-kotlin-2.2:${project.version}")
+                appendLine("  io.github.nianzixin:locator-compiler-plugin-kotlin-2.4:${project.version}")
                 appendLine("  io.github.nianzixin:locator-gradle-plugin:${project.version}")
                 appendLine("  io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:${project.version}")
                 appendLine("  io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:${project.version}")
@@ -2399,9 +2400,12 @@ tasks.register("verifyComposeLocatorReleasePackage") {
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.pom",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version-sources.jar",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.pom",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.jar",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version-sources.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version.pom",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version-sources.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version.pom",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version-sources.jar",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.pom",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.jar",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version-sources.jar",
@@ -2677,7 +2681,8 @@ tasks.register("verifyComposeLocatorCentralBundle") {
             "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version-javadoc.jar",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar.asc",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version.jar",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.jar",
             "io/github/nianzixin/team-compose-locator/io.github.nianzixin.team-compose-locator.gradle.plugin/$version/io.github.nianzixin.team-compose-locator.gradle.plugin-$version.pom",
         )
@@ -2964,7 +2969,8 @@ tasks.register("verifyComposeLocatorPublicCoordinates") {
         val requiredSnippets = listOf(
             "io.github.nianzixin:locator-runtime:$version",
             "io.github.nianzixin:locator-runtime-android:$version",
-            "io.github.nianzixin:locator-compiler-plugin:$version",
+            "io.github.nianzixin:locator-compiler-plugin-kotlin-2.2:$version",
+            "io.github.nianzixin:locator-compiler-plugin-kotlin-2.4:$version",
             "io.github.nianzixin:locator-gradle-plugin:$version",
             "io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:$version",
             "io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:$version",

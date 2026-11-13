@@ -104,6 +104,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Publish compiler plugin Kotlin 2.4 variant to staging
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        # staging 默认只随 stageComposeLocatorRelease 发布 2.2 变体，2.4 变体需在打包 Central bundle 前单独发布
+        run: ./gradlew --no-daemon :locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository -PkotlinCompilerApi=2.4
+
       - name: Upload Central Portal deployment
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
