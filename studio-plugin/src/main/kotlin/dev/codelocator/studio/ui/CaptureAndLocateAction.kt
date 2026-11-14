@@ -24,7 +24,7 @@ class CaptureAndLocateAction(
         val candidates = studioService?.locate(x, y, session)
             ?: fallbackClient.hitTest(session.toDeviceX(x), session.toDeviceY(y))
                 .map { candidate -> sourceIndex?.resolve(candidate) ?: candidate }
-        val resolvedCandidates = candidates.sortedForLocation()
+        val resolvedCandidates = candidates.sortedForLocation().distinctForDisplay()
         return LocateResult(imageX = x, imageY = y, candidates = resolvedCandidates)
     }
 
@@ -36,5 +36,16 @@ class CaptureAndLocateAction(
 
     private fun List<HitCandidate>.sortedForLocation(): List<HitCandidate> {
         return sortedWith(HitCandidateOrdering.byLocationPriority)
+    }
+
+    /**
+     * 去掉展示上完全重复的候选：同一节点的语义层与布局层可能注册了相同 sourceId 且 bounds 一致，
+     * 列表里会出现两行一模一样的条目（调用点条目还会被夹在中间）；按 sourceId + bounds 去重，
+     * sourceId 为空的节点（LayoutNode/WindowRoot 等）保留原样
+     */
+    private fun List<HitCandidate>.distinctForDisplay(): List<HitCandidate> {
+        return distinctBy { candidate ->
+            "${candidate.sourceId ?: "no-source"}#${candidate.bounds.left},${candidate.bounds.top},${candidate.bounds.right},${candidate.bounds.bottom}"
+        }
     }
 }

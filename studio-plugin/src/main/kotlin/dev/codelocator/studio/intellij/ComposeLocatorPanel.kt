@@ -62,8 +62,21 @@ class ComposeLocatorPanel(
             val result = toolWindow.locateCandidates(imageX, imageY)
             runOnUi {
                 screenshotCanvas.setCandidates(result.candidates)
+                // 最佳候选 = 排序后首个可导航候选；调用点条目只挂在它下方（方案二）
+                val bestCandidate = result.candidates.firstOrNull { it.location?.isNavigable == true }
+                    ?: result.candidates.firstOrNull()
                 candidateModel.removeAll()
-                candidateModel.add(result.candidates.map { CandidateRow(it.label, it) })
+                candidateModel.add(
+                    buildList {
+                        result.candidates.forEach { candidate ->
+                            add(CandidateRow(candidate.label, candidate))
+                            // 调用点条目插在最佳候选行之后；候选行索引与 result.candidates 一致（插入只发生在其后）
+                            if (candidate === bestCandidate) {
+                                boundaryRowFor(candidate)?.let(::add)
+                            }
+                        }
+                    },
+                )
                 when {
                     result.candidates.isEmpty() -> {
                         screenshotCanvas.setSelectedCandidate(null)
@@ -81,14 +94,13 @@ class ComposeLocatorPanel(
                         }
                     }
                     else -> {
-                        val bestCandidate = result.candidates.firstOrNull { it.location?.isNavigable == true }
-                            ?: result.candidates.first()
-                        val selectedIndex = result.candidates.indexOf(bestCandidate)
+                        val best = requireNotNull(bestCandidate) { "candidates not empty here" }
+                        val selectedIndex = result.candidates.indexOf(best)
                         candidateList.selectedIndex = selectedIndex
-                        screenshotCanvas.setSelectedCandidate(bestCandidate)
-                        updateCandidateDetails(bestCandidate)
-                        if (bestCandidate.location?.isNavigable == true) {
-                            toolWindow.openCandidate(bestCandidate)
+                        screenshotCanvas.setSelectedCandidate(best)
+                        updateCandidateDetails(best)
+                        if (best.location?.isNavigable == true) {
+                            toolWindow.openCandidate(best)
                             statusLabel.text = "Opened best of ${result.candidates.size} candidates at ($imageX, $imageY)"
                         } else {
                             statusLabel.text = "Found ${result.candidates.size} candidates at ($imageX, $imageY), but source was not resolved"
@@ -148,6 +160,19 @@ class ComposeLocatorPanel(
             screenshotCanvas.setSelectedCandidate(selected)
             selected?.let(::updateCandidateDetails)
         }
+        // 双击候选条目（含"调用点"条目）直接跳转到对应源码；单击仍只更新高亮与详情
+        candidateList.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(event: MouseEvent) {
+                if (event.clickCount != 2) return
+                val candidate = candidateList.selectedValue?.candidate ?: return
+                toolWindow.openCandidate(candidate)
+                statusLabel.text = if (candidate.location?.isNavigable == true) {
+                    "Opened ${candidate.label}"
+                } else {
+                    "Cannot navigate ${candidate.label}; source was not resolved"
+                }
+            }
+        })
 
         add(controls, BorderLayout.NORTH)
         add(JPanel(BorderLayout(0, 4)).apply {
@@ -273,6 +298,23 @@ class ComposeLocatorPanel(
             appendLine("Navigation: ${toolWindow.sourceResolutionHint(candidate)}")
             append("Symbol: ${location?.symbol ?: "n/a"}")
         }
+    }
+
+    /**
+     * 为最佳候选构建"调用点"条目：boundarySourceId 是 ASM 插桩在调用外层 Composable 时
+     * 压栈记录的外层调用点 sourceId（如 Xuju.kt:374），格式与 sourceId 同命名空间，
+     * 可直接经 Studio 索引解析。为空、等于自身 sourceId 或索引解析失败时不生成条目
+     */
+    private fun boundaryRowFor(candidate: HitCandidate): CandidateRow? {
+        val boundaryId = candidate.boundarySourceId ?: return null
+        if (boundaryId == candidate.sourceId) return null
+        val location = toolWindow.resolveBoundaryLocation(boundaryId) ?: return null
+        // 标签只展示外层调用点的符号名，缺失时不回退到候选自身的 composableName（语义不同会误导）
+        val label = "${location.relativePath.substringAfterLast('/')}:${location.line} " +
+            "(${location.symbol ?: "unknown"})"
+        // 复用最佳候选作为载体，仅替换 sourceId/位置/标签：
+        // 选中时高亮框落在同一 bounds 上，双击经 openCandidate 跳到调用点
+        return CandidateRow(label, candidate.copy(sourceId = boundaryId, location = location, label = label))
     }
 
     private fun HitCandidate.kindLabel(): String {

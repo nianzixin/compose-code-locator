@@ -50,6 +50,16 @@ class LocatorToolWindow(
         actionWithService().open(candidate)
     }
 
+    /**
+     * 解析 boundarySourceId（外层调用点）对应的源码位置，
+     * 供候选列表生成"调用点"条目；索引查不到时返回 null
+     *
+     * @param boundarySourceId 外层调用点的 sourceId，与普通 sourceId 同命名空间
+     */
+    fun resolveBoundaryLocation(boundarySourceId: Long?): dev.codelocator.studio.model.SourceLocation? {
+        return sourceIndex.resolve(boundarySourceId)
+    }
+
     fun sourceResolutionHint(candidate: dev.codelocator.studio.model.HitCandidate): String {
         val location = candidate.location
         if (location != null && !location.isNavigable) {

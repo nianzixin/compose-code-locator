@@ -29,22 +29,120 @@ object ComposeSourceScanner {
         sourceDirectories: List<String>,
         pathRootDir: File = projectDir,
     ): List<ComposeSourceEntry> {
-        return sourceDirectories
+        val sourceRoots = sourceDirectories
             .map { File(projectDir, it) }
             .filter { it.exists() }
+        // 两遍扫描：先解析全部文件并收集全局 Composable 声明表，
+        // 再匹配调用点；调用点必须支持跨文件（如 login_view 调 waulavis 里的封装组件），
+        // 只扫同文件会漏掉绝大多数业务调用点导致 ASM 插桩不生效
+        val parsedFiles = sourceRoots
             .flatMap { root ->
                 root.walkTopDown()
                     .filter { it.isFile && it.extension == "kt" }
-                    .flatMap { file -> scanFile(pathRootDir.toPath(), file).asSequence() }
+                    .map { file -> parseFile(pathRootDir.toPath(), file) }
                     .toList()
             }
+        val uniqueComposableBySymbol = parsedFiles
+            .asSequence()
+            .flatMap { parsed -> parsed.composables.asSequence().map { it.symbol to it.ownerClassName } }
+            .groupBy({ it.first }, { it.second })
+            .filterValues { it.size == 1 }
+            .mapValues { it.value.single() }
+        return parsedFiles
+            .flatMap { parsed -> parsed.collectEntries(uniqueComposableBySymbol).asSequence() }
             .distinctBy { "${it.kind}:${it.relativePath}:${it.symbol}:${it.line}:${it.column}:${it.tag.orEmpty()}:${it.text.orEmpty()}:${it.role.orEmpty()}" }
             .sortedWith(compareBy<ComposeSourceEntry> { it.relativePath }.thenBy { it.line }.thenBy { it.symbol })
+            .toList()
     }
 
-    private fun scanFile(projectPath: Path, file: File): List<ComposeSourceEntry> {
+    private class ParsedSourceFile(
+        val relativePath: String,
+        val packageName: String,
+        val ownerClassName: String,
+        val lines: List<String>,
+        val functionRegex: Regex,
+        val composableRanges: List<ComposableRange>,
+    ) {
+        val composables: List<ComposeSourceEntry>
+            get() = composableRanges.map { range ->
+                val line = lines[range.declarationLineIndex]
+                ComposeSourceEntry(
+                    symbol = range.symbol,
+                    relativePath = relativePath,
+                    line = range.declarationLineIndex + 1,
+                    column = range.declarationColumn,
+                    sourceId = fnv1a64("$relativePath#${range.symbol}#${range.declarationLineIndex + 1}"),
+                    packageName = packageName,
+                    ownerClassName = ownerClassName,
+                    kind = ComposeSourceEntryKind.Composable,
+                )
+            }
+
+        /**
+         * 收集本文件的 Modifier 调用点 + Composable 调用点；
+         * Composable 调用点用全局唯一符号表匹配（支持跨文件调用），
+         * map 值是该符号声明文件的 ownerClassName，ASM map key 需要 callee 的 owner
+         */
+        fun collectEntries(uniqueComposableBySymbol: Map<String, String>): List<ComposeSourceEntry> {
+            val results = mutableListOf<ComposeSourceEntry>()
+            results += composables
+            val modifierCallRegex = Regex("""\b([A-Z][A-Za-z0-9_]*)\s*(?:\(|\{)""")
+            val composableCallRegex = if (uniqueComposableBySymbol.isEmpty()) {
+                null
+            } else {
+                // 按 name 长度倒序拼接，避免短符号在长符号里先匹配（如 FooBar 里的 Foo）
+                Regex("\\b(" + uniqueComposableBySymbol.keys.sortedByDescending { it.length }.joinToString("|") { Regex.escape(it) } + ")\\s*\\(")
+            }
+            lines.forEachIndexed { index, line ->
+                if (composableRanges.none { it.contains(index) }) return@forEachIndexed
+                val cleanLine = line.withoutLineComment()
+
+                modifierCallRegex.findAll(cleanLine).forEach { match ->
+                    if (line.isFunctionDeclarationAt(match.range.first)) return@forEach
+                    val symbol = match.groupValues[1]
+                    results += ComposeSourceEntry(
+                        symbol = symbol,
+                        relativePath = relativePath,
+                        line = index + 1,
+                        column = match.range.first + 1,
+                        sourceId = compilerPluginSourceId(
+                            relativePath = relativePath,
+                            line = index + 1,
+                            column = match.range.first + 1,
+                            symbol = symbol,
+                        ),
+                        packageName = packageName,
+                        ownerClassName = ownerClassName,
+                        kind = ComposeSourceEntryKind.ModifierCallSite,
+                    )
+                }
+
+                composableCallRegex?.findAll(cleanLine)?.forEach { match ->
+                    if (line.isFunctionDeclarationAt(match.range.first)) return@forEach
+                    val symbol = match.groupValues[1]
+                    results += ComposeSourceEntry(
+                        symbol = symbol,
+                        relativePath = relativePath,
+                        line = index + 1,
+                        column = match.range.first + 1,
+                        sourceId = compilerPluginSourceId(
+                            relativePath = relativePath,
+                            line = index + 1,
+                            column = match.range.first + 1,
+                            symbol = symbol,
+                        ),
+                        packageName = packageName,
+                        ownerClassName = uniqueComposableBySymbol.getValue(symbol),
+                        kind = ComposeSourceEntryKind.ComposableCallSite,
+                    )
+                }
+            }
+            return results
+        }
+    }
+
+    private fun parseFile(projectPath: Path, file: File): ParsedSourceFile {
         val lines = file.readLines()
-        val results = mutableListOf<ComposeSourceEntry>()
         val packageName = lines.firstNotNullOfOrNull(::parsePackageName).orEmpty()
         val ownerClassName = buildOwnerClassName(packageName, file.nameWithoutExtension)
         val relativePath = projectPath.relativize(file.toPath()).toString().replace(File.separatorChar, '/')
@@ -53,101 +151,14 @@ object ComposeSourceScanner {
         // 其中的 Modifier 调用点（如侧栏 Text/clickable）全部漏扫，运行时命中却查不到索引
         val functionRegex = Regex("""^\s*(?:(?:@[A-Za-z0-9_.]+(?:\([^)]*\))?)\s*)*(?:(?:private|internal|public|protected|override|inline|suspend|operator)\s+)*fun\s+(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)\s*\(""")
         val composableRanges = findComposableRanges(lines, functionRegex)
-        val modifierCallRegex = Regex("""\b([A-Z][A-Za-z0-9_]*)\s*(?:\(|\{)""")
-
-        composableRanges.forEach { range ->
-            val line = lines[range.declarationLineIndex]
-            val sourceKey = "$relativePath#${range.symbol}#${range.declarationLineIndex + 1}"
-            results += ComposeSourceEntry(
-                symbol = range.symbol,
-                relativePath = relativePath,
-                line = range.declarationLineIndex + 1,
-                column = range.declarationColumn,
-                sourceId = fnv1a64(sourceKey),
-                packageName = packageName,
-                ownerClassName = ownerClassName,
-                kind = ComposeSourceEntryKind.Composable,
-            )
-        }
-
-        lines.forEachIndexed { index, line ->
-            val currentComposable = composableRanges.lastOrNull { it.contains(index) }?.symbol
-            if (currentComposable == null) {
-                return@forEachIndexed
-            }
-
-            modifierCallRegex.findAll(line.withoutLineComment()).forEach { match ->
-                if (line.isFunctionDeclarationAt(match.range.first)) return@forEach
-                val symbol = match.groupValues[1]
-                val sourceId = compilerPluginSourceId(
-                    relativePath = relativePath,
-                    line = index + 1,
-                    column = match.range.first + 1,
-                    symbol = symbol,
-                )
-                results += ComposeSourceEntry(
-                    symbol = symbol,
-                    relativePath = relativePath,
-                    line = index + 1,
-                    column = match.range.first + 1,
-                    sourceId = sourceId,
-                    packageName = packageName,
-                    ownerClassName = ownerClassName,
-                    kind = ComposeSourceEntryKind.ModifierCallSite,
-                )
-            }
-        }
-
-        results += scanComposableCallSites(
-            lines = lines,
+        return ParsedSourceFile(
             relativePath = relativePath,
             packageName = packageName,
-            composableEntries = results.filter { it.kind == ComposeSourceEntryKind.Composable },
+            ownerClassName = ownerClassName,
+            lines = lines,
             functionRegex = functionRegex,
             composableRanges = composableRanges,
         )
-
-        return results
-    }
-
-    private fun scanComposableCallSites(
-        lines: List<String>,
-        relativePath: String,
-        packageName: String,
-        composableEntries: List<ComposeSourceEntry>,
-        functionRegex: Regex,
-        composableRanges: List<ComposableRange>,
-    ): List<ComposeSourceEntry> {
-        val uniqueComposableBySymbol = composableEntries
-            .groupBy { it.symbol }
-            .filterValues { it.size == 1 }
-            .mapValues { it.value.single() }
-        if (uniqueComposableBySymbol.isEmpty()) return emptyList()
-
-        return lines.flatMapIndexed { index, line ->
-            if (composableRanges.none { it.contains(index) }) return@flatMapIndexed emptyList()
-            val declarationSymbol = functionRegex.find(line)?.groupValues?.getOrNull(1)
-            uniqueComposableBySymbol.mapNotNull { (symbol, target) ->
-                if (declarationSymbol == symbol) return@mapNotNull null
-                val match = Regex("""\b${Regex.escape(symbol)}\s*\(""").find(line)
-                    ?: return@mapNotNull null
-                ComposeSourceEntry(
-                    symbol = symbol,
-                    relativePath = relativePath,
-                    line = index + 1,
-                    column = match.range.first + 1,
-                    sourceId = compilerPluginSourceId(
-                        relativePath = relativePath,
-                        line = index + 1,
-                        column = match.range.first + 1,
-                        symbol = symbol,
-                    ),
-                    packageName = packageName,
-                    ownerClassName = target.ownerClassName,
-                    kind = ComposeSourceEntryKind.ComposableCallSite,
-                )
-            }
-        }
     }
 
     private fun findComposableRanges(
