@@ -17,11 +17,28 @@ INTERNAL_FILES=(
 
 git checkout upstream-pr
 
-if git merge main --no-edit; then
+if git merge main --no-edit 2>/dev/null; then
     echo "merge 完成"
 else
-    echo "merge main 出现冲突，请手工解决后重新运行本脚本" >&2
-    exit 1
+    # 预期冲突：内网文件在 main 上被修改、upstream-pr 上已删除（DU = deleted by us）——保留删除
+    du_resolved=0
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        git rm -q -- "$f"
+        du_resolved=1
+    done < <(git status --porcelain | awk '$1=="DU"{print $2}')
+
+    # 其余冲突（UU 等双边内容冲突）无法自动裁决，交还人工
+    if git status --porcelain | awk '$1=="UU"||$1=="AA"||$1=="DD"||$1=="AU"||$1=="UA"{exit 1}'; then
+        git add -A
+        git commit -q --no-edit
+        echo "merge 完成（自动解决 $du_resolved 处内网文件 modify/delete 冲突）"
+    else
+        echo "merge main 出现双边内容冲突，请手工解决后重新运行本脚本" >&2
+        git merge --abort
+        git checkout main
+        exit 1
+    fi
 fi
 
 # 剔除内网文件（-q：文件可能已不存在，忽略报错）。
