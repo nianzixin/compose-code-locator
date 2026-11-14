@@ -11,9 +11,9 @@ import java.util.zip.ZipOutputStream
 
 plugins {
     base
-    kotlin("jvm") version "2.0.21" apply false
-    kotlin("android") version "2.0.21" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+    kotlin("jvm") version "2.2.10" apply false
+    kotlin("android") version "2.2.10" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false
     id("com.android.application") version "8.6.1" apply false
     id("com.android.library") version "8.6.1" apply false
     id("org.jetbrains.intellij") version "1.17.4" apply false
@@ -27,7 +27,7 @@ extra["publicGitHubUrl"] = publicGitHubUrl
 
 allprojects {
     group = publicGroupId
-    version = "0.1.1"
+    version = "0.1.7"
 }
 
 val studioPluginVerifierCli by configurations.creating {
@@ -121,12 +121,12 @@ tasks.register("verifyDemoDevice") {
         fun execAndCapture(args: List<String>): String {
             val stdout = ByteArrayOutputStream()
             val stderr = ByteArrayOutputStream()
-            val result = project.exec {
+            val result = providers.exec {
                 commandLine(args)
                 standardOutput = stdout
                 errorOutput = stderr
                 isIgnoreExitValue = true
-            }
+            }.result.get()
             val out = stdout.toString()
             val err = stderr.toString()
             if (result.exitValue != 0) {
@@ -1167,12 +1167,12 @@ tasks.register("verifyStableDeviceNodeIds") {
         fun execAndCapture(args: List<String>): String {
             val stdout = ByteArrayOutputStream()
             val stderr = ByteArrayOutputStream()
-            val result = project.exec {
+            val result = providers.exec {
                 commandLine(args)
                 standardOutput = stdout
                 errorOutput = stderr
                 isIgnoreExitValue = true
-            }
+            }.result.get()
             if (result.exitValue != 0) {
                 throw GradleException("Command failed (${result.exitValue}): ${args.joinToString(" ")}\n${stderr.toString().ifBlank { stdout.toString() }}")
             }
@@ -2068,7 +2068,7 @@ tasks.register("verifyComposeLocatorTeamConvention") {
                 dependency.group == "io.github.nianzixin" && dependency.name == "locator-runtime-android"
             } || allDependencies.any { dependency ->
                 dependency is org.gradle.api.artifacts.ProjectDependency &&
-                    dependency.dependencyProject.path == ":locator-runtime-android"
+                    dependency.path == ":locator-runtime-android"
             }
         }
 
@@ -2197,6 +2197,38 @@ tasks.register("verifyComposeLocatorReleaseBoundary") {
     }
 }
 
+// 第二次 Gradle 调用：compiler plugin 的 Kotlin 2.2/2.4 是同一模块靠 -PkotlinCompilerApi 切换的薄壳变体，
+// 单次调用只能编译发布一个变体，因此单独起一个 Gradle 进程发布 kotlin-2.4 产物到同一 staging Maven 目录。
+// 必须用 Exec 而非 GradleBuild：嵌套 GradleBuild 调用不支持本仓 settings 的 includeBuild 结构
+tasks.register<Exec>("publishCompilerPluginKotlin24") {
+    group = "distribution"
+    description = "Publishes the Kotlin 2.4 compiler plugin variant to the release staging Maven repository."
+    workingDir = rootDir
+    // Windows 下 .bat 必须经 cmd 启动；CI（Linux/macOS）直接跑 gradlew
+    val wrapperScript = rootProject.file("gradlew.bat").takeIf { it.isFile }
+        ?: rootProject.file("gradlew")
+    val wrapperCommand = if (System.getProperty("os.name").contains("Windows")) {
+        listOf("cmd", "/c", wrapperScript.absolutePath)
+    } else {
+        listOf(wrapperScript.absolutePath)
+    }
+    // 子进程的 gradlew 只从 PATH 找 java（不读 JAVA_HOME），而 CI runner 的 java 不一定在全局 PATH，
+    // 因此把当前 Gradle JVM 的 bin 目录显式加进子进程 PATH
+    val javaBin = System.getProperty("java.home") + File.separator + "bin"
+    environment(
+        "PATH",
+        javaBin + File.pathSeparator + System.getenv("PATH"),
+    )
+    commandLine(
+        *(
+            wrapperCommand + listOf(
+                ":locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository",
+                "-PkotlinCompilerApi=2.4",
+            )
+            ).toTypedArray()
+    )
+}
+
 tasks.register("stageComposeLocatorRelease") {
     group = "distribution"
     description = "Stages Maven artifacts, the Android Studio plugin ZIP, and a release manifest for team rollout."
@@ -2206,6 +2238,7 @@ tasks.register("stageComposeLocatorRelease") {
         ":locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository",
         gradle.includedBuild("locator-gradle-plugin").task(":publishAllPublicationsToComposeLocatorStagingRepository"),
         ":studio-plugin:buildStudioPluginZip",
+        "publishCompilerPluginKotlin24",
     )
 
     val releaseDir = layout.buildDirectory.dir("composeLocator/release")
@@ -2244,7 +2277,8 @@ tasks.register("stageComposeLocatorRelease") {
                 appendLine("Artifacts:")
                 appendLine("  io.github.nianzixin:locator-runtime:${project.version}")
                 appendLine("  io.github.nianzixin:locator-runtime-android:${project.version}")
-                appendLine("  io.github.nianzixin:locator-compiler-plugin:${project.version}")
+                appendLine("  io.github.nianzixin:locator-compiler-plugin-kotlin-2.2:${project.version}")
+                appendLine("  io.github.nianzixin:locator-compiler-plugin-kotlin-2.4:${project.version}")
                 appendLine("  io.github.nianzixin:locator-gradle-plugin:${project.version}")
                 appendLine("  io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:${project.version}")
                 appendLine("  io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:${project.version}")
@@ -2399,9 +2433,12 @@ tasks.register("verifyComposeLocatorReleasePackage") {
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.pom",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version-sources.jar",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.pom",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.jar",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version-sources.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version.pom",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version-sources.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version.pom",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version-sources.jar",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.pom",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.jar",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version-sources.jar",
@@ -2677,7 +2714,8 @@ tasks.register("verifyComposeLocatorCentralBundle") {
             "io/github/nianzixin/locator-runtime/$version/locator-runtime-$version-javadoc.jar",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar",
             "io/github/nianzixin/locator-runtime-android/$version/locator-runtime-android-$version.aar.asc",
-            "io/github/nianzixin/locator-compiler-plugin/$version/locator-compiler-plugin-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.2/$version/locator-compiler-plugin-kotlin-2.2-$version.jar",
+            "io/github/nianzixin/locator-compiler-plugin-kotlin-2.4/$version/locator-compiler-plugin-kotlin-2.4-$version.jar",
             "io/github/nianzixin/locator-gradle-plugin/$version/locator-gradle-plugin-$version.jar",
             "io/github/nianzixin/team-compose-locator/io.github.nianzixin.team-compose-locator.gradle.plugin/$version/io.github.nianzixin.team-compose-locator.gradle.plugin-$version.pom",
         )
@@ -2804,7 +2842,7 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
     doLast {
         val version = project(":studio-plugin").version.toString()
         val expectedSinceBuild = "241"
-        val expectedUntilBuild = "261.*"
+        val expectedUntilBuild = "263.*"
         val pluginXml = project(":studio-plugin").file("src/main/resources/META-INF/plugin.xml")
         val pluginXmlText = pluginXml.readText()
         check("<id>io.github.nianzixin.compose-code-locator</id>" in pluginXmlText) {
@@ -2964,7 +3002,8 @@ tasks.register("verifyComposeLocatorPublicCoordinates") {
         val requiredSnippets = listOf(
             "io.github.nianzixin:locator-runtime:$version",
             "io.github.nianzixin:locator-runtime-android:$version",
-            "io.github.nianzixin:locator-compiler-plugin:$version",
+            "io.github.nianzixin:locator-compiler-plugin-kotlin-2.2:$version",
+            "io.github.nianzixin:locator-compiler-plugin-kotlin-2.4:$version",
             "io.github.nianzixin:locator-gradle-plugin:$version",
             "io.github.nianzixin.compose-locator:io.github.nianzixin.compose-locator.gradle.plugin:$version",
             "io.github.nianzixin.team-compose-locator:io.github.nianzixin.team-compose-locator.gradle.plugin:$version",
@@ -3134,7 +3173,7 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
 
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
-        val result = exec {
+        val result = providers.exec {
             workingDir = consumerDir
             commandLine = listOf(
                 project.rootDir.resolve("gradlew").absolutePath,
@@ -3145,7 +3184,7 @@ tasks.register("verifyComposeLocatorReleaseConsumer") {
             standardOutput = stdout
             errorOutput = stderr
             isIgnoreExitValue = true
-        }
+        }.result.get()
         check(result.exitValue == 0) {
             "Staged Compose Locator plugin consumer smoke test failed.\nSTDOUT:\n$stdout\nSTDERR:\n$stderr"
         }

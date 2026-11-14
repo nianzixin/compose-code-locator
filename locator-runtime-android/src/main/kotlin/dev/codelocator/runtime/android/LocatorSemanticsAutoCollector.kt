@@ -378,6 +378,7 @@ private object LocatorLayoutTreeCollector {
         var childParentId = parentId
         runCatching {
             val sourceId = locatorSourceId()
+            val boundarySourceId = locatorBoundarySourceId()
             val semantics = modifierSemanticsConfiguration()
             val nodeId = sourceId?.stableLayoutNodeId(semanticsId)
                 ?: autoLayoutNodeId(view, semanticsId, windowInfo.id)
@@ -389,6 +390,7 @@ private object LocatorLayoutTreeCollector {
                     layoutInfo = this,
                     bounds = rect,
                     sourceId = sourceId,
+                    boundarySourceId = boundarySourceId,
                     parentId = parentId,
                     windowInfo = windowInfo,
                 )?.let(output::add)
@@ -398,6 +400,7 @@ private object LocatorLayoutTreeCollector {
                 screenBounds = rect,
                 zIndex = -1f - depth,
                 sourceId = sourceId,
+                boundarySourceId = boundarySourceId,
                 composableName = layoutNodeName(),
                 parentId = parentId,
                 flags = FLAG_AUTO_LAYOUT,
@@ -452,6 +455,19 @@ private object LocatorLayoutTreeCollector {
             }
     }
 
+    /**
+     * 读取 modifier 上的 boundarySourceId（外层调用点 sourceId）：
+     * 优先直接识别 LocatorSourceElement，混淆构建下回退到反射读取，
+     * 与 locatorSourceId 保持同一读取策略
+     */
+    private fun LayoutInfo.locatorBoundarySourceId(): Long? {
+        return getModifierInfo()
+            .firstNotNullOfOrNull { info ->
+                val modifier = info.modifier
+                modifier.readLocatorBoundarySourceId() ?: info.readLocatorBoundarySourceId()
+            }
+    }
+
     private fun LayoutInfo.modifierSemanticsConfiguration(): SemanticsConfiguration? {
         val configs = getModifierInfo().mapNotNull { info ->
             (info.modifier as? SemanticsModifier)?.semanticsConfiguration
@@ -465,11 +481,17 @@ private object LocatorLayoutTreeCollector {
         }
     }
 
+    /**
+     * 语义配置转为 LocatorNode
+     *
+     * @param boundarySourceId 外层调用点的 sourceId，随节点上报供 Studio 生成"调用点"条目
+     */
     private fun SemanticsConfiguration.toLocatorNode(
         view: View,
         layoutInfo: LayoutInfo,
         bounds: Rect,
         sourceId: Long?,
+        boundarySourceId: Long?,
         parentId: Long?,
         windowInfo: WindowInfo,
     ): LocatorNode? {
@@ -489,6 +511,7 @@ private object LocatorLayoutTreeCollector {
             screenBounds = bounds,
             zIndex = if (hasClickAction) 2f else 0f,
             sourceId = sourceId,
+            boundarySourceId = boundarySourceId,
             semanticsTag = semanticsTag,
             text = text,
             role = role,
@@ -503,7 +526,9 @@ private object LocatorLayoutTreeCollector {
 
     private fun SemanticsConfiguration.collapsePeerCompat(peer: SemanticsConfiguration) {
         runCatching {
-            javaClass.findMethod("collapsePeer\$ui_release")?.invoke(this, peer)
+            // Compose 1.12+ 混淆后缀从 ui_release 变为 ui
+            javaClass.findMethod("collapsePeer\$ui")?.invoke(this, peer)
+                ?: javaClass.findMethod("collapsePeer\$ui_release")?.invoke(this, peer)
         }.onFailure {
             peer.forEach { (key, value) ->
                 @Suppress("UNCHECKED_CAST")
@@ -529,22 +554,41 @@ private object LocatorLayoutTreeCollector {
         return readLongMember("getSourceId")
             ?: readLongMember("sourceId")
             ?: readLongField("sourceId")
-            ?: readNestedModifierSourceId()
+            ?: readThroughNestedModifier { readLocatorSourceId() }
     }
 
-    private fun Any.readNestedModifierSourceId(): Long? {
+    /**
+     * 读取 boundarySourceId：自身是 LocatorSourceElement 时直接取字段，
+     * 否则按混淆反射策略读 getBoundarySourceId()/boundarySourceId
+     */
+    private fun Any.readLocatorBoundarySourceId(): Long? {
+        (this as? LocatorSourceElement)?.let { return it.boundarySourceId }
+        return readLongMember("getBoundarySourceId")
+            ?: readLongMember("boundarySourceId")
+            ?: readLongField("boundarySourceId")
+            ?: readThroughNestedModifier { readLocatorBoundarySourceId() }
+    }
+
+    /**
+     * 沿 modifier 嵌套链（getModifier() 方法或 modifier 字段）向内层走一步，
+     * 在下一个 modifier 元素上继续按 reader 读取目标字段；sourceId 与 boundarySourceId
+     * 两条读取链共用此行走逻辑，避免逐字段各复制一份
+     *
+     * @param reader 在下一步元素上的读取函数（递归进入对应的读取链）
+     */
+    private fun Any.readThroughNestedModifier(reader: Any.() -> Long?): Long? {
         return runCatching {
             javaClass.methods.firstOrNull { it.name == "getModifier" && it.parameterCount == 0 }
                 ?.invoke(this)
                 ?.takeIf { it !== this }
-                ?.readLocatorSourceId()
+                ?.reader()
         }.getOrNull()
             ?: runCatching {
                 javaClass.declaredFields.firstOrNull { it.name == "modifier" }
                     ?.also { it.isAccessible = true }
                     ?.get(this)
                     ?.takeIf { it !== this }
-                    ?.readLocatorSourceId()
+                    ?.reader()
             }.getOrNull()
     }
 
@@ -625,8 +669,11 @@ private object LocatorLayoutChildrenReader {
     fun childrenOf(layoutInfo: LayoutInfo): List<LayoutInfo> {
         val accessor = accessors.computeIfAbsent(layoutInfo.javaClass) { clazz ->
             clazz.findMethod("getChildren")
+                // Compose 1.12+ 混淆后缀从 ui_release 变为 ui
+                ?: clazz.findMethod("getChildren\$ui")
                 ?: clazz.findMethod("getChildren\$ui_release")
                 ?: clazz.findMethod("getZSortedChildren")
+                ?: clazz.findMethod("get_children\$ui")
                 ?: clazz.findMethod("get_children\$ui_release")
                 ?: clazz.findField("children")
                 ?: clazz.findField("_children")

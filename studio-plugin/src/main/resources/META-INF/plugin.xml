@@ -1,9 +1,12 @@
 <idea-plugin>
     <id>io.github.nianzixin.compose-code-locator</id>
     <name>Compose Code Locator</name>
-    <version>0.1.4</version>
+    <version>0.1.7</version>
     <vendor url="https://github.com/nianzixin/compose-code-locator">nianzixin</vendor>
-    <idea-version since-build="241" until-build="261.*" />
+    <idea-version since-build="241" until-build="263.*" />
+
+    <!-- 插件图标（Settings | Plugins 列表与 Marketplace 中显示） -->
+    <icon>icons/pluginIcon.svg</icon>
 
     <description><![CDATA[
         Compose Code Locator provides Android Studio screenshot-to-source navigation for Jetpack Compose debug builds.
@@ -11,10 +14,18 @@
 
     <depends>com.intellij.modules.platform</depends>
 
+    <!-- 项目打开时释放 Gradle 侧 bootstrap 环境（marker/jar/init script），实现 build.gradle 零配置 -->
+    <applicationListeners>
+        <listener
+            class="dev.codelocator.studio.intellij.LocatorProjectOpenListener"
+            topic="com.intellij.openapi.project.ProjectManagerListener" />
+    </applicationListeners>
+
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
             id="Compose Code Locator"
             factoryClass="dev.codelocator.studio.intellij.ComposeLocatorToolWindowFactory"
+            icon="icons/toolWindowIcon.svg"
             anchor="right" />
     </extensions>
 

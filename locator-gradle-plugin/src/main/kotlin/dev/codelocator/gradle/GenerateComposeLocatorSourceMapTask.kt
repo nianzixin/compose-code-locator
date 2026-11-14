@@ -1,7 +1,8 @@
 package dev.codelocator.gradle
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.FileCollection
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.provider.Property
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Input
@@ -15,28 +16,28 @@ abstract class GenerateComposeLocatorSourceMapTask : DefaultTask() {
     @get:Input
     abstract val sourceDirectories: ListProperty<String>
 
+    // 配置期解析好的扫描根，执行期不再访问 Project
     @get:Input
-    abstract val aggregateProjectPaths: ListProperty<String>
+    abstract val scanRoots: ListProperty<ComposeLocatorScanRoot>
+
+    // 仅取路径字符串，避免把整个工程目录变成任务输入
+    @get:Input
+    abstract val pathRootDir: Property<String>
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    val kotlinSourceFiles: FileCollection
-        get() = project.files(scanRoots().flatMap { (scanProject, directories) ->
-            directories.map { scanProject.file(it) }
-        })
-            .asFileTree
-            .matching { it.include("**/*.kt") }
+    val kotlinSourceFiles: ConfigurableFileCollection = project.objects.fileCollection()
 
     @get:OutputFile
     abstract val outputPath: RegularFileProperty
 
     @TaskAction
     fun generate() {
-        val entries = scanRoots().flatMap { (scanProject, directories) ->
+        val entries = scanRoots.get().resolvedScanRoots().flatMap { (projectDir, directories) ->
             ComposeSourceScanner.scan(
-                projectDir = scanProject.projectDir,
+                projectDir = projectDir,
                 sourceDirectories = directories,
-                pathRootDir = project.rootProject.projectDir,
+                pathRootDir = java.io.File(pathRootDir.get()),
             )
         }
         val outputFile = outputPath.get().asFile
@@ -47,16 +48,6 @@ abstract class GenerateComposeLocatorSourceMapTask : DefaultTask() {
             logger.lifecycle("Generated Compose locator source map at ${outputFile.absolutePath}")
         } else {
             logger.lifecycle("Compose locator source map unchanged at ${outputFile.absolutePath}")
-        }
-    }
-
-    private fun scanRoots(): List<Pair<org.gradle.api.Project, List<String>>> {
-        return aggregateProjectPaths.get().mapNotNull { path ->
-            runCatching { project.project(path) }.getOrNull()
-        }.map { scanProject ->
-            val extension = scanProject.extensions.findByType(ComposeLocatorExtension::class.java)
-            val directories = extension?.sourceDirectories ?: sourceDirectories.get()
-            scanProject to directories
         }
     }
 }

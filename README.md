@@ -105,6 +105,22 @@ composeLocator {
 
 Normal debug integration does not require Application or Activity code changes. The runtime starts automatically through a provider.
 
+## Zero-Config Setup (Android Studio Plugin)
+
+If you use the Android Studio plugin, the Gradle-side integration can be fully automatic — no `build.gradle` or `settings.gradle` edits at all. With the plugin installed, opening an Android project in Android Studio:
+
+1. Extracts the build-time artifacts (Gradle plugin bootstrap jar, Kotlin compiler plugin jar, runtime AAR) into the project's `.gradle/compose-locator/` directory, so integration works on intranet/offline machines without any remote repository.
+2. Writes a global init script to `$GRADLE_USER_HOME/init.d/compose-code-locator.init.gradle.kts` (the `GRADLE_USER_HOME` environment variable takes precedence; defaults to `~/.gradle`).
+3. Automatically injects the Gradle plugin into debug builds (`assemble`/`install`/`bundle`/`compile *Debug` task names only; release builds, IDE sync, and other projects are unaffected).
+4. When the project's `minSdk` is below 26, writes `<uses-sdk tools:overrideLibrary="dev.codelocator.runtime.android" />` into `src/debug/AndroidManifest.xml` (only if that file does not exist).
+
+The init script only activates in projects marked with a `.gradle/compose-locator/enable` file (written when the Studio plugin opens the project), so CI, teammates without the plugin, and unrelated projects behave exactly as before. Reopening the project after a Studio plugin upgrade refreshes the extracted artifacts and init script. To disable injection for one project, delete its `.gradle/compose-locator/` directory.
+
+Studio-side index notes:
+
+- The Studio index is regenerated across incremental builds: Kotlin incremental compilation only re-compiles changed files, so the index task merges entries from the previous index instead of rebuilding from scratch, keeping `sourceId`s of untouched files navigable.
+- The source scanner recognizes composables with a receiver type (e.g. `fun BoxScope.SideBar(...)`), so call sites inside such function bodies are indexed too.
+
 ## Using The GitHub Release Maven Package
 
 Maven Central is the preferred distribution channel. The GitHub Release still contains a static Maven repository for internal mirrors, offline trials, or CDN-based distribution:
