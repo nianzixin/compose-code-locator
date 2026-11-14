@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 
 # 内网专属文件清单：merge 后从 upstream-pr 剔除，永远不进对外 PR
 INTERNAL_FILES=(
-    docs/internal-notes.md
+    docs/gfi-内部使用说明.md
     publish-gitlab-registry.sh
     publish-maven-branch.sh
     sync-upstream-pr.sh
