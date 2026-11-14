@@ -6,6 +6,9 @@ stages:
 
 build-studio-plugin:
   stage: build
+  # 指定具备 JDK 17 + Android SDK 的内网 runner
+  tags:
+    - androidapk
   # 需要具备 JDK 17 + Android SDK 的 runner
   script:
     - ./gradlew --no-daemon :studio-plugin:verifyStudioPluginPackaging -Pcodelocator.studio.useStubs=true
