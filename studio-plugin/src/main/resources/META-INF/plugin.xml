@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>io.github.nianzixin.compose-code-locator</id>
     <name>Compose Code Locator</name>
-    <version>0.1.5</version>
+    <version>0.1.6</version>
     <vendor url="https://github.com/nianzixin/compose-code-locator">nianzixin</vendor>
     <idea-version since-build="241" until-build="263.*" />
 
@@ -13,6 +13,13 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+
+    <!-- 项目打开时释放 Gradle 侧 bootstrap 环境（marker/jar/init script），实现 build.gradle 零配置 -->
+    <applicationListeners>
+        <listener
+            class="dev.codelocator.studio.intellij.LocatorProjectOpenListener"
+            topic="com.intellij.openapi.project.ProjectManagerListener" />
+    </applicationListeners>
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
