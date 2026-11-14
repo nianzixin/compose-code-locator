@@ -145,6 +145,6 @@ class ComposeLocatorTeamPlugin : Plugin<Project> {
 
     private companion object {
         /** locator-runtime-android 声明的 minSdk，低于此值需要 overrideLibrary */
-        const val RUNTIME_MIN_SDK = 26
+        const val RUNTIME_MIN_SDK = 23
     }
 }

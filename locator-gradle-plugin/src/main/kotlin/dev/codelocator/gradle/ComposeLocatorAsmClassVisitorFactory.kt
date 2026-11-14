@@ -143,7 +143,12 @@ private class ComposeLocatorMethodVisitor(
             descriptor.looksLikeComposableDescriptor() &&
             line != null
         ) {
+            // 带默认参数的 Composable 在字节码里被 Compose 追加 "-hash" 混淆后缀（如 xxx-CnU_rPo），
+            // source map 的 key 是源码级符号名，精确匹配失败时剥掉后缀再查一次
             sourceIds["$owner#$name#$line"]
+                ?: name.lastIndexOf('-').takeIf { it > 0 }?.let { suffixStart ->
+                    sourceIds["$owner#${name.substring(0, suffixStart)}#$line"]
+                }
         } else {
             null
         }

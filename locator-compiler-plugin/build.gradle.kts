@@ -63,6 +63,12 @@ tasks.withType<KotlinCompile>().configureEach {
     }
 }
 
+// 变体名必须声明为 jar 任务输入：同一模块靠 -PkotlinCompilerApi 切换变体且输出同名 jar，
+// 不声明的话切换属性后 jar 会被判 UP-TO-DATE，zip 会打进错误变体
+tasks.named<Jar>("jar") {
+    inputs.property("kotlinCompilerApi", compilerApiVariantName)
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {

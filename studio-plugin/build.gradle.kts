@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm")
 }
 
-version = "0.1.6"
+version = "0.1.7"
 
 kotlin {
     jvmToolchain(17)
@@ -146,6 +146,60 @@ tasks.register<Zip>("buildStudioPluginZip") {
     }
 }
 
+// 编译器插件 Kotlin 2.2/2.4 是同一模块靠 -PkotlinCompilerApi 切换的薄壳变体，
+// zip 分发需要两个变体 jar 各一份（installer 按固定名释放、Gradle 插件按宿主版本挑选），
+// 因此各起一次独立 Gradle 进程构建并把产物重命名为变体名，两次构建必须串行避免同名产物互踩
+val compilerPluginJarName = "locator-compiler-plugin-${rootProject.version}.jar"
+val compilerPluginBuildLibs = rootProject.file("locator-compiler-plugin/build/libs")
+
+/**
+ * 注册一个 Kotlin 编译器变体的构建+重命名任务对：
+ * Exec 起独立 Gradle 进程以 -PkotlinCompilerApi=<apiVersion> 构建薄壳变体，
+ * Copy 把同名产物重命名为 locator-compiler-plugin-kotlin-<apiVersion>.jar；
+ * 两次构建输出同名 jar 会互踩，调用方必须保证变体之间串行（mustRunAfter + dependsOn）
+ *
+ * @param apiVersion 编译器插件面向的 Kotlin API 版本（如 "2.2"、"2.4"）
+ * @return Exec 构建任务与 Copy 重命名任务的 Provider 对
+ */
+fun registerCompilerPluginVariant(
+    apiVersion: String,
+): Pair<TaskProvider<Exec>, TaskProvider<Copy>> {
+    val buildTask = tasks.register<Exec>("buildCompilerPluginVariantKotlin${apiVersion.replace(".", "")}") {
+        group = "build"
+        description = "Builds the Kotlin $apiVersion compiler plugin variant jar."
+        workingDir = rootDir
+        val wrapperScript = rootProject.file("gradlew.bat").takeIf { it.isFile } ?: rootProject.file("gradlew")
+        val wrapperCommand = if (System.getProperty("os.name").contains("Windows")) {
+            listOf("cmd", "/c", wrapperScript.absolutePath)
+        } else {
+            listOf(wrapperScript.absolutePath)
+        }
+        val javaBin = System.getProperty("java.home") + File.separator + "bin"
+        environment("PATH", javaBin + File.pathSeparator + System.getenv("PATH"))
+        commandLine(*wrapperCommand.plus(":locator-compiler-plugin:jar").plus("-PkotlinCompilerApi=$apiVersion").toTypedArray())
+    }
+    val renameTask = tasks.register<Copy>("renameCompilerPluginVariantKotlin${apiVersion.replace(".", "")}") {
+        dependsOn(buildTask)
+        // rename 读的 build/libs 是 :locator-compiler-plugin:jar 的输出目录，须显式声明依赖避免隐式依赖校验报错
+        dependsOn(project(":locator-compiler-plugin").tasks.named("jar"))
+        from(compilerPluginBuildLibs) {
+            include(compilerPluginJarName)
+            exclude("*-sources.jar", "*-javadoc.jar")
+        }
+        rename { "locator-compiler-plugin-kotlin-$apiVersion.jar" }
+        into(compilerPluginBuildLibs)
+    }
+    return buildTask to renameTask
+}
+
+// 2.4 必须等 2.2 产物重命名完再跑：两次构建输出同名 jar，后一次会覆盖前一次
+val (buildCompilerPluginVariantKotlin22, renameCompilerPluginVariantKotlin22) = registerCompilerPluginVariant("2.2")
+val (buildCompilerPluginVariantKotlin24, renameCompilerPluginVariantKotlin24) = registerCompilerPluginVariant("2.4")
+buildCompilerPluginVariantKotlin24.configure {
+    dependsOn(renameCompilerPluginVariantKotlin22)
+    mustRunAfter(renameCompilerPluginVariantKotlin22)
+}
+
 // 收集 Gradle 侧构建期三产物到统一目录，供 buildStudioPluginZip 打进 zip 的 lib/
 // - locator-gradle-plugin bootstrap jar：来自 included build（自带 asm/stdlib，init script 加载用）
 // - locator-compiler-plugin jar：Kotlin 编译器插件，-Xplugin 消费
@@ -156,29 +210,35 @@ val copyLocatorBootstrapArtifacts by tasks.registering(Copy::class) {
 
     val bootstrapJar = rootProject.file("locator-gradle-plugin/build/libs/locator-gradle-plugin-bootstrap.jar")
     dependsOn(gradle.includedBuild("locator-gradle-plugin").task(":bootstrapJar"))
-    dependsOn(project(":locator-compiler-plugin").tasks.named("jar"))
+    // 变体 jar 需要独立进程逐个构建 + 重命名，zip 里必须同时包含 2.2/2.4 两个变体
+    dependsOn(renameCompilerPluginVariantKotlin22)
+    dependsOn(renameCompilerPluginVariantKotlin24)
     dependsOn(project(":locator-runtime").tasks.named("jar"))
     dependsOn(project(":locator-runtime-android").tasks.named("bundleDebugAar"))
 
     from(bootstrapJar)
     from(rootProject.file("locator-compiler-plugin/build/libs")) {
-        include("locator-compiler-plugin-*.jar")
+        // 只收带 Kotlin 行变体后缀的 jar（kotlin-2.2/kotlin-2.4）；不带后缀的主 jar 任务产物不随 zip 分发
+        include("locator-compiler-plugin-kotlin-*.jar")
         exclude("*-sources.jar", "*-javadoc.jar")
     }
-    // runtime core jar：AAR 文件依赖不带 pom 传递依赖，必须与 AAR 一起注入，否则 APK 缺 core 类直接崩溃
+    // runtime core jar：AAR 文件依赖不带 pom 传递依赖，必须与 AAR 一起注入，否则 APK 缺 core 类直接崩溃。
+    // 只收当前版本的 jar，避免本地残留旧版本产物重命名后同名冲突
     from(rootProject.file("locator-runtime/build/libs")) {
-        include("locator-runtime-*.jar")
-        exclude("*-sources.jar", "*-javadoc.jar")
+        include("locator-runtime-${rootProject.version}.jar")
     }
     from(rootProject.file("locator-runtime-android/build/outputs/aar")) {
         include("locator-runtime-android-debug.aar")
     }
     into(layout.buildDirectory.dir("locator-bootstrap"))
 
-    // 统一重命名，installer 与 init script 按固定文件名释放/消费
+    // 统一重命名，installer 与 init script 按固定文件名释放/消费。
+    // compiler 插件按 Kotlin 行保留变体后缀（kotlin-2.2/kotlin-2.4），宿主工程由 Gradle 插件按版本挑选
     rename { fileName ->
         when {
             fileName == bootstrapJar.name -> "locator-gradle-plugin-bootstrap.jar"
+            Regex("locator-compiler-plugin-(kotlin-[0-9]+\\.[0-9]+)").find(fileName) != null ->
+                "locator-compiler-plugin-" + Regex("locator-compiler-plugin-(kotlin-[0-9]+\\.[0-9]+)").find(fileName)!!.groupValues[1] + ".jar"
             fileName.startsWith("locator-compiler-plugin") -> "locator-compiler-plugin.jar"
             fileName.startsWith("locator-runtime-android") -> "locator-runtime-android.aar"
             fileName.startsWith("locator-runtime") -> "locator-runtime.jar"
@@ -213,7 +273,8 @@ tasks.register("verifyStudioPluginPackaging") {
         }
         listOf(
             "locator-gradle-plugin-bootstrap.jar",
-            "locator-compiler-plugin.jar",
+            "locator-compiler-plugin-kotlin-2.2.jar",
+            "locator-compiler-plugin-kotlin-2.4.jar",
             "locator-runtime.jar",
             "locator-runtime-android.aar",
         ).forEach { artifact ->

@@ -40,6 +40,7 @@ abstract class GenerateComposeLocatorAsmSourceMapTask : DefaultTask() {
                 pathRootDir = java.io.File(pathRootDir.get()),
             )
         }
+        val formattedEntries = entries
             .asSequence()
             .filter { it.kind == ComposeSourceEntryKind.ComposableCallSite }
             .map { entry ->
@@ -50,7 +51,7 @@ abstract class GenerateComposeLocatorAsmSourceMapTask : DefaultTask() {
             .toList()
         val content = buildString {
             appendLine("# owner#symbol#line=sourceId")
-            entries.forEach(::appendLine)
+            formattedEntries.forEach(::appendLine)
         }
         val file = outputFile.get().asFile
         file.parentFile.mkdirs()

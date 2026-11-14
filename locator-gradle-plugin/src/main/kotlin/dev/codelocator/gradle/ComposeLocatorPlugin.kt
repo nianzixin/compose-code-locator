@@ -253,10 +253,20 @@ class ComposeLocatorPlugin : Plugin<Project> {
         extension: ComposeLocatorExtension,
         compileDebugKotlin: Task,
     ): java.io.File {
-        // Studio 插件 bootstrap 模式：优先使用释放到工程 .gradle/compose-locator/ 的 compiler jar，免 maven 解析
-        val bootstrapCompilerJar = composeLocatorBootstrapDir()?.let { java.io.File(it, ComposeLocatorBootstrap.COMPILER_ARTIFACT_FILE_NAME) }
-        if (bootstrapCompilerJar != null && bootstrapCompilerJar.isFile) {
-            return bootstrapCompilerJar
+        // Studio 插件 bootstrap 模式：优先使用释放到工程 .gradle/compose-locator/ 的 compiler jar，免 maven 解析。
+        // jar 按宿主 Kotlin 行带变体后缀（locator-compiler-plugin-kotlin-2.2.jar 等），按宿主版本挑选；旧版单一文件名兜底
+        composeLocatorBootstrapDir()?.let { bootstrapDir ->
+            val variantJar = java.io.File(
+                bootstrapDir,
+                "${ComposeLocatorBootstrap.COMPILER_ARTIFACT_PREFIX}-${pickCompilerApiSuffix(detectHostKotlinVersion(project))}.jar",
+            )
+            if (variantJar.isFile) {
+                return variantJar
+            }
+            val legacyJar = java.io.File(bootstrapDir, ComposeLocatorBootstrap.COMPILER_ARTIFACT_FILE_NAME)
+            if (legacyJar.isFile) {
+                return legacyJar
+            }
         }
 
         val localCompilerPluginJarTask = rootProject.tasks.findByPath(":locator-compiler-plugin:jar")

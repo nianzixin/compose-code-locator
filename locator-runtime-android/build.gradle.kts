@@ -11,7 +11,8 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        minSdk = 26
+        // 与宿主 app 常见的 minSdk 23 对齐；runtime 源码未使用 API 26+ 接口，降级安全
+        minSdk = 23
     }
 
     compileOptions {

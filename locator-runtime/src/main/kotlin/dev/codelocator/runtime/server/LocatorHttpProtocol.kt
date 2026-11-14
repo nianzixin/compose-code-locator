@@ -72,7 +72,8 @@ object LocatorHttpProtocol {
 
     private fun LocatorNode.toJson(): String {
         val sourceIdJson = sourceId?.toString() ?: "null"
-        return "{\"id\":$id,\"bounds\":[${screenBounds.left},${screenBounds.top},${screenBounds.right},${screenBounds.bottom}],\"zIndex\":$zIndex,\"sourceId\":$sourceIdJson,\"semanticsTag\":${stringOrNull(semanticsTag)},\"text\":${stringOrNull(text)},\"role\":${stringOrNull(role)},\"composableName\":${stringOrNull(composableName)},\"flags\":$flags,\"windowId\":$windowId,\"windowTitle\":${stringOrNull(windowTitle)},\"windowLayer\":$windowLayer}"
+        val boundarySourceIdJson = boundarySourceId?.toString() ?: "null"
+        return "{\"id\":$id,\"bounds\":[${screenBounds.left},${screenBounds.top},${screenBounds.right},${screenBounds.bottom}],\"zIndex\":$zIndex,\"sourceId\":$sourceIdJson,\"boundarySourceId\":$boundarySourceIdJson,\"semanticsTag\":${stringOrNull(semanticsTag)},\"text\":${stringOrNull(text)},\"role\":${stringOrNull(role)},\"composableName\":${stringOrNull(composableName)},\"flags\":$flags,\"windowId\":$windowId,\"windowTitle\":${stringOrNull(windowTitle)},\"windowLayer\":$windowLayer}"
     }
 
     private fun List<LocatorNode>.toWindowJson(): String {

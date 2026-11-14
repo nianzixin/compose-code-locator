@@ -27,7 +27,7 @@ extra["publicGitHubUrl"] = publicGitHubUrl
 
 allprojects {
     group = publicGroupId
-    version = "0.1.2"
+    version = "0.1.7"
 }
 
 val studioPluginVerifierCli by configurations.creating {
@@ -2197,6 +2197,38 @@ tasks.register("verifyComposeLocatorReleaseBoundary") {
     }
 }
 
+// 第二次 Gradle 调用：compiler plugin 的 Kotlin 2.2/2.4 是同一模块靠 -PkotlinCompilerApi 切换的薄壳变体，
+// 单次调用只能编译发布一个变体，因此单独起一个 Gradle 进程发布 kotlin-2.4 产物到同一 staging Maven 目录。
+// 必须用 Exec 而非 GradleBuild：嵌套 GradleBuild 调用不支持本仓 settings 的 includeBuild 结构
+tasks.register<Exec>("publishCompilerPluginKotlin24") {
+    group = "distribution"
+    description = "Publishes the Kotlin 2.4 compiler plugin variant to the release staging Maven repository."
+    workingDir = rootDir
+    // Windows 下 .bat 必须经 cmd 启动；CI（Linux/macOS）直接跑 gradlew
+    val wrapperScript = rootProject.file("gradlew.bat").takeIf { it.isFile }
+        ?: rootProject.file("gradlew")
+    val wrapperCommand = if (System.getProperty("os.name").contains("Windows")) {
+        listOf("cmd", "/c", wrapperScript.absolutePath)
+    } else {
+        listOf(wrapperScript.absolutePath)
+    }
+    // 子进程的 gradlew 只从 PATH 找 java（不读 JAVA_HOME），而 CI runner 的 java 不一定在全局 PATH，
+    // 因此把当前 Gradle JVM 的 bin 目录显式加进子进程 PATH
+    val javaBin = System.getProperty("java.home") + File.separator + "bin"
+    environment(
+        "PATH",
+        javaBin + File.pathSeparator + System.getenv("PATH"),
+    )
+    commandLine(
+        *(
+            wrapperCommand + listOf(
+                ":locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository",
+                "-PkotlinCompilerApi=2.4",
+            )
+            ).toTypedArray()
+    )
+}
+
 tasks.register("stageComposeLocatorRelease") {
     group = "distribution"
     description = "Stages Maven artifacts, the Android Studio plugin ZIP, and a release manifest for team rollout."
@@ -2206,6 +2238,7 @@ tasks.register("stageComposeLocatorRelease") {
         ":locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository",
         gradle.includedBuild("locator-gradle-plugin").task(":publishAllPublicationsToComposeLocatorStagingRepository"),
         ":studio-plugin:buildStudioPluginZip",
+        "publishCompilerPluginKotlin24",
     )
 
     val releaseDir = layout.buildDirectory.dir("composeLocator/release")
@@ -2809,7 +2842,7 @@ tasks.register("verifyComposeLocatorMarketplacePackage") {
     doLast {
         val version = project(":studio-plugin").version.toString()
         val expectedSinceBuild = "241"
-        val expectedUntilBuild = "261.*"
+        val expectedUntilBuild = "263.*"
         val pluginXml = project(":studio-plugin").file("src/main/resources/META-INF/plugin.xml")
         val pluginXmlText = pluginXml.readText()
         check("<id>io.github.nianzixin.compose-code-locator</id>" in pluginXmlText) {

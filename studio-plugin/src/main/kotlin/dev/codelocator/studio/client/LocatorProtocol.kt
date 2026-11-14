@@ -30,10 +30,12 @@ object LocatorProtocol {
             val windowTitle = candidate.stringOrNull("windowTitle")
             val windowLayer = candidate.intOrNull("windowLayer") ?: 0
             val sourceId = candidate.longOrNull("sourceId")
+            val boundarySourceId = candidate.longOrNull("boundarySourceId")
             val label = buildLabel(sourceId, composableName, tag, text)
             HitCandidate(
                 id = id,
                 sourceId = sourceId,
+                boundarySourceId = boundarySourceId,
                 location = null,
                 label = label,
                 bounds = bounds,

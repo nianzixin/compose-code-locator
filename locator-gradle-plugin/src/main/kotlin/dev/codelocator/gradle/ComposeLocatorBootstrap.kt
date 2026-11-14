@@ -12,8 +12,11 @@ object ComposeLocatorBootstrap {
     /** init script 写入 Gradle 全局 extra 的工程内释放目录属性名 */
     const val BOOTSTRAP_DIR_PROPERTY = "codelocator.bootstrap.dir"
 
-    /** 释放到工程内的 compiler 插件 jar 文件名 */
-    const val COMPILER_ARTIFACT_FILE_NAME = "locator-compiler-plugin.jar"
+    /** 释放到工程内的 compiler 插件 jar 文件名前缀；实际文件按宿主 Kotlin 行带变体后缀（如 locator-compiler-plugin-kotlin-2.2.jar） */
+    const val COMPILER_ARTIFACT_PREFIX = "locator-compiler-plugin"
+
+    /** 旧版单一 compiler jar 文件名（0.1.6 及之前的 Studio 插件释放产物），作兜底 */
+    const val COMPILER_ARTIFACT_FILE_NAME = "$COMPILER_ARTIFACT_PREFIX.jar"
 
     /** 释放到工程内的 runtime AAR 文件名（不含 -debug 后缀） */
     const val RUNTIME_ARTIFACT_FILE_NAME = "locator-runtime-android.aar"
