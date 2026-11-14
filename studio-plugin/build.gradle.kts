@@ -162,23 +162,27 @@ val copyLocatorBootstrapArtifacts by tasks.registering(Copy::class) {
 
     from(bootstrapJar)
     from(rootProject.file("locator-compiler-plugin/build/libs")) {
-        include("locator-compiler-plugin-*.jar")
+        // 只收带 Kotlin 行变体后缀的 jar（kotlin-2.2/kotlin-2.4）；不带后缀的主 jar 任务产物不随 zip 分发
+        include("locator-compiler-plugin-kotlin-*.jar")
         exclude("*-sources.jar", "*-javadoc.jar")
     }
-    // runtime core jar：AAR 文件依赖不带 pom 传递依赖，必须与 AAR 一起注入，否则 APK 缺 core 类直接崩溃
+    // runtime core jar：AAR 文件依赖不带 pom 传递依赖，必须与 AAR 一起注入，否则 APK 缺 core 类直接崩溃。
+    // 只收当前版本的 jar，避免本地残留旧版本产物重命名后同名冲突
     from(rootProject.file("locator-runtime/build/libs")) {
-        include("locator-runtime-*.jar")
-        exclude("*-sources.jar", "*-javadoc.jar")
+        include("locator-runtime-${rootProject.version}.jar")
     }
     from(rootProject.file("locator-runtime-android/build/outputs/aar")) {
         include("locator-runtime-android-debug.aar")
     }
     into(layout.buildDirectory.dir("locator-bootstrap"))
 
-    // 统一重命名，installer 与 init script 按固定文件名释放/消费
+    // 统一重命名，installer 与 init script 按固定文件名释放/消费。
+    // compiler 插件按 Kotlin 行保留变体后缀（kotlin-2.2/kotlin-2.4），宿主工程由 Gradle 插件按版本挑选
     rename { fileName ->
         when {
             fileName == bootstrapJar.name -> "locator-gradle-plugin-bootstrap.jar"
+            Regex("locator-compiler-plugin-(kotlin-[0-9.]+)-.*\\.jar").find(fileName) != null ->
+                "locator-compiler-plugin-" + Regex("locator-compiler-plugin-(kotlin-[0-9.]+)-.*\\.jar").find(fileName)!!.groupValues[1] + ".jar"
             fileName.startsWith("locator-compiler-plugin") -> "locator-compiler-plugin.jar"
             fileName.startsWith("locator-runtime-android") -> "locator-runtime-android.aar"
             fileName.startsWith("locator-runtime") -> "locator-runtime.jar"
@@ -213,7 +217,8 @@ tasks.register("verifyStudioPluginPackaging") {
         }
         listOf(
             "locator-gradle-plugin-bootstrap.jar",
-            "locator-compiler-plugin.jar",
+            "locator-compiler-plugin-kotlin-2.2.jar",
+            "locator-compiler-plugin-kotlin-2.4.jar",
             "locator-runtime.jar",
             "locator-runtime-android.aar",
         ).forEach { artifact ->

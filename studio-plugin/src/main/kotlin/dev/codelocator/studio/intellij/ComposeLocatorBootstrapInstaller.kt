@@ -44,10 +44,11 @@ object ComposeLocatorBootstrapInstaller {
             ?: "unknown"
     }
 
-    /** 随插件分发的构建期产物文件名（在插件 lib/ 目录与工程 marker 目录中同名） */
+    /** 随插件分发的构建期产物文件名（在插件 lib/ 目录与工程 marker 目录中同名）；compiler jar 按 Kotlin 行分变体，由 Gradle 插件按宿主版本挑选 */
     private val ARTIFACT_NAMES = listOf(
         "locator-gradle-plugin-bootstrap.jar",
-        "locator-compiler-plugin.jar",
+        "locator-compiler-plugin-kotlin-2.2.jar",
+        "locator-compiler-plugin-kotlin-2.4.jar",
         "locator-runtime.jar",
         "locator-runtime-android.aar",
     )
