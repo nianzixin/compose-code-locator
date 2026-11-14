@@ -503,7 +503,7 @@ private object LocatorLayoutTreeCollector {
 
     private fun SemanticsConfiguration.collapsePeerCompat(peer: SemanticsConfiguration) {
         runCatching {
-            // Compose 1.12+ changed the obfuscated suffix from ui_release to ui
+            // Compose 1.12+ 混淆后缀从 ui_release 变为 ui
             javaClass.findMethod("collapsePeer\$ui")?.invoke(this, peer)
                 ?: javaClass.findMethod("collapsePeer\$ui_release")?.invoke(this, peer)
         }.onFailure {
@@ -627,7 +627,7 @@ private object LocatorLayoutChildrenReader {
     fun childrenOf(layoutInfo: LayoutInfo): List<LayoutInfo> {
         val accessor = accessors.computeIfAbsent(layoutInfo.javaClass) { clazz ->
             clazz.findMethod("getChildren")
-                // Compose 1.12+ changed the obfuscated suffix from ui_release to ui
+                // Compose 1.12+ 混淆后缀从 ui_release 变为 ui
                 ?: clazz.findMethod("getChildren\$ui")
                 ?: clazz.findMethod("getChildren\$ui_release")
                 ?: clazz.findMethod("getZSortedChildren")

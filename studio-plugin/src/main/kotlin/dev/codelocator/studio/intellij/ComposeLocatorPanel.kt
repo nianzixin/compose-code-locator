@@ -1,7 +1,6 @@
 package dev.codelocator.studio.intellij
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBLabel
@@ -36,7 +35,9 @@ class ComposeLocatorPanel(
 ) : JPanel(BorderLayout(8, 8)) {
     private val statusLabel = JBLabel("Idle")
     private val deviceComboBox = JComboBox<DeviceDescriptor>()
-    private val candidateModel = CollectionListModel<CandidateRow>()
+    // CollectionListModel 无参构造器在 AI-262 平台已移除（只剩带参构造器），
+    // 运行时解析不到 <init>()V 会沿父类链命中 protected 的 AbstractListModel.<init> 导致 IllegalAccessError
+    private val candidateModel = CollectionListModel(mutableListOf<CandidateRow>())
     private val candidateList = JBList(candidateModel).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
     }
@@ -286,16 +287,14 @@ class ComposeLocatorPanel(
 
     private fun runInBackground(block: () -> Unit): AsyncUiResult {
         val result = AsyncUiResult()
-        ApplicationManager.getApplication().executeOnPooledThread {
-            runCatching(block).onFailure { error ->
-                result.failure?.invoke(error)
-            }
+        IdeThreading.runInBackground(block) { error ->
+            result.failure?.invoke(error)
         }
         return result
     }
 
     private fun runOnUi(block: () -> Unit) {
-        ApplicationManager.getApplication().invokeLater(block)
+        IdeThreading.runOnUi(block)
     }
 
     private inner class AsyncUiResult {
@@ -401,7 +400,8 @@ private class ScreenshotCanvas(
     }
 
     override fun getPreferredSize(): Dimension {
-        val current = model ?: return preferredSize
+        // 无截图时返回默认尺寸；不能调 preferredSize（getPreferredSize 自身递归 → StackOverflowError 拖垮 EDT）
+        val current = model ?: return Dimension(DEFAULT_WIDTH, DEFAULT_HEIGHT)
         val scale = effectiveScale(current.image)
         return Dimension(
             (current.image.width * scale).toInt().coerceAtLeast(DEFAULT_WIDTH),
@@ -440,7 +440,7 @@ private class ScreenshotCanvas(
             val width = ((bounds.right - bounds.left) * placement.scale).toInt().coerceAtLeast(1)
             val height = ((bounds.bottom - bounds.top) * placement.scale).toInt().coerceAtLeast(1)
             val selected = candidate == selectedCandidate || (selectedCandidate == null && index == 0)
-            // Unselected candidates only get an outline, so overlapping large candidates do not tint the whole screenshot unreadably
+            // 未选中候选只画边框，避免多个大范围候选叠加染色看不清截图
             if (selected) {
                 graphics.color = Color(0xE2, 0x58, 0x22, 64)
                 graphics.fillRoundRect(x, y, width, height, 12, 12)

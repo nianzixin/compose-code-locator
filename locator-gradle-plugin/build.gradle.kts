@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.nianzixin"
-version = "0.1.1"
+version = "0.1.2"
 
 val publicGitHubUrl = "https://github.com/nianzixin/compose-code-locator"
 
@@ -47,6 +47,26 @@ dependencies {
     compileOnly("com.android.tools.build:gradle-api:8.5.2")
     implementation("org.ow2.asm:asm:9.7")
     implementation("org.ow2.asm:asm-tree:9.7")
+}
+
+// 自包含 bootstrap jar：供 Studio 插件释放到工程 .gradle/compose-locator/ 后由全局 init script 加载，
+// 无法走 maven 坐标解析，故把 implementation 依赖（asm、kotlin-stdlib）打进包内；
+// 若用户 buildscript classpath 已有同名类，Gradle 类加载先命中用户的，包内副本仅兜底
+tasks.register<Jar>("bootstrapJar") {
+    group = "build"
+    description = "Builds a self-contained bootstrap jar of the locator Gradle plugin for Studio-plugin offline distribution."
+    archiveFileName.set("locator-gradle-plugin-bootstrap.jar")
+    destinationDirectory.set(layout.buildDirectory.dir("libs"))
+
+    from(sourceSets.named("main").get().output)
+    from(
+        configurations.named("runtimeClasspath").map { cp ->
+            cp.filter { it.name.startsWith("asm") || it.name.contains("kotlin-stdlib") }
+                .files.map { zipTree(it) }
+        },
+    )
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
 tasks.register<JavaExec>("benchmarkComposeLocatorPerformance") {

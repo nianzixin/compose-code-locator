@@ -16,11 +16,11 @@ abstract class GenerateComposeLocatorAsmSourceMapTask : DefaultTask() {
     @get:Input
     abstract val sourceDirectories: ListProperty<String>
 
-    // Scan root resolved at configuration time; execution no longer touches Project
+    // 配置期解析好的扫描根，执行期不再访问 Project
     @get:Input
     abstract val scanRoots: ListProperty<ComposeLocatorScanRoot>
 
-    // Keep only path strings so whole project dirs do not become task inputs
+    // 仅取路径字符串，避免把整个工程目录变成任务输入
     @get:Input
     abstract val pathRootDir: Property<String>
 

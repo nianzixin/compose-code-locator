@@ -9,11 +9,11 @@ class StudioSourceIndex(
     private val projectRoot: File,
     private val maxLoadedShards: Int = 16,
 ) {
-    // Index cache: loaded on first use, then auto-invalidated by file timestamp or manually via refresh()
+    // 索引缓存：首次使用时加载，之后通过文件时间戳自动失效或 refresh() 手动刷新
     private var indexRoots: List<File>? = null
     private var sourceToShard: Map<Long, String> = emptyMap()
 
-    // mtime of the source-id-index.tsv backing the loaded cache; any change means the index was rebuilt
+    // 已加载缓存对应的 source-id-index.tsv 最新修改时间，变化即视为索引已重建
     private var loadedStamp: Long = -1L
     private val shardCache = object : LinkedHashMap<String, Map<Long, SourceLocation>>(maxLoadedShards, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Map<Long, SourceLocation>>?): Boolean {
@@ -22,7 +22,7 @@ class StudioSourceIndex(
     }
 
     /**
-     * Clears the index cache; the next resolution rescans the index directory
+     * 清空索引缓存，下次解析时重新扫描索引目录
      */
     @Synchronized
     fun refresh() {
@@ -33,7 +33,7 @@ class StudioSourceIndex(
     }
 
     /**
-     * Returns a description of the current index size for the UI status line
+     * 返回当前索引规模描述，用于界面状态提示
      */
     @Synchronized
     fun describeState(): String {
@@ -55,7 +55,7 @@ class StudioSourceIndex(
     }
 
     /**
-     * Auto-reloads after the index file is rebuilt (clean/build/version bump); no IDE restart needed
+     * 索引文件被重建（clean/build/换版本）后自动重载，无需重启 AS
      */
     private fun ensureFresh() {
         val roots = indexRoots ?: findIndexRoots().also { indexRoots = it }

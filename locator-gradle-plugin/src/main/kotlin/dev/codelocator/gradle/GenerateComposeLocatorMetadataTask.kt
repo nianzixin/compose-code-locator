@@ -19,11 +19,11 @@ abstract class GenerateComposeLocatorMetadataTask : DefaultTask() {
     @get:Input
     abstract val producerPath: Property<String>
 
-    // Producer module dirs and root dir are injected at configuration time; execution no longer touches Project
+    // 生产模块目录与根目录在配置期注入，执行期不再访问 Project
     @get:Input
     abstract val producerProjectDir: Property<String>
 
-    // Keep only path strings so whole project dirs do not become task inputs
+    // 仅取路径字符串，避免把整个工程目录变成任务输入
     @get:Input
     abstract val pathRootDir: Property<String>
 

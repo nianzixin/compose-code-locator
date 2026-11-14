@@ -42,7 +42,7 @@ class ComposeLocatorIrGenerationExtension(
                 Name.identifier("locatorSource"),
             ),
         )
-        // Kotlin 2.2+: receivers and regular parameters are unified into 'parameters'; distinguish them by kind
+        // Kotlin 2.2+：receiver 与普通参数统一进 parameters，用 kind 区分
         val locatorSourceExtensionFunction = locatorFunctions
             .firstOrNull { symbol ->
                 val owner = symbol.owner
@@ -130,7 +130,7 @@ class ComposeLocatorIrGenerationExtension(
         writeReport(records)
     }
 
-    /** Builds the locator call, writing receiver and sourceId at Kotlin 2.2+ unified parameter indices */
+    /** 构造定位调用，并按 Kotlin 2.2+ 的统一参数下标写入 receiver 与 sourceId */
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private fun createLocatorSourceCall(
         expression: IrCall,
@@ -140,7 +140,7 @@ class ComposeLocatorIrGenerationExtension(
         sourceId: Long,
         pluginContext: IrPluginContext,
     ): IrCall {
-        // Kotlin 2.4: constructor and indicator are internal; accessed via the official migration-period opt-in
+        // Kotlin 2.4：构造器与指示器均为 internal，用官方迁移期压制手段访问
         @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
         return IrCallImpl(
             IrElementConstructorIndicator,
@@ -151,7 +151,7 @@ class ComposeLocatorIrGenerationExtension(
             function,
             null,
         ).apply {
-            // the internal constructor does not preallocate arguments; pad to the parameters count first
+            // internal 构造器不预分配 arguments，先补齐到 parameters 个数
             while (arguments.size < function.owner.parameters.size) arguments.add(null)
             function.owner.extensionReceiverParameter()?.let { receiver ->
                 arguments[receiver.indexInParameters] = modifier
@@ -237,7 +237,7 @@ class ComposeLocatorIrGenerationExtension(
         ) ?: return false
         val current = arguments.getOrNull(maskParameter.indexInParameters) as? IrConst ?: return false
         val currentValue = (current as? IrConstImpl)?.value as? Int ?: return false
-        // mask bit order follows old valueParameters indices (2.4 removed indexInOldValueParameters; count manually)
+        // mask 位序按旧 valueParameters 下标计算（2.4 已移除 indexInOldValueParameters，自行统计）
         val nextValue = currentValue and (1 shl (owner.indexInOldValueParameters(parameter) % 32)).inv()
         if (nextValue == currentValue) return false
         arguments[maskParameter.indexInParameters] = IrConstImpl.int(
@@ -272,17 +272,17 @@ class ComposeLocatorIrGenerationExtension(
     }
 }
 
-/** Kotlin 2.2+: find the receiver parameter in 'parameters' by kind */
+/** Kotlin 2.2+：receiver 参数从 parameters 中按 kind 查找 */
 private fun IrFunction.extensionReceiverParameter(): IrValueParameter? {
     return parameters.firstOrNull { it.kind == IrParameterKind.ExtensionReceiver }
 }
 
-/** Only regular value parameters (old valueParameters semantics) */
+/** 仅普通值参数（旧 valueParameters 语义） */
 private fun IrFunction.regularParameters(): List<IrValueParameter> {
     return parameters.filter { it.kind == IrParameterKind.Regular }
 }
 
-/** Old valueParameters index: number of Regular parameters before it in 'parameters' (official property removed in 2.4) */
+/** 旧 valueParameters 下标：parameters 中排在它之前的 Regular 参数个数（2.4 已移除官方属性） */
 private fun IrFunction.indexInOldValueParameters(parameter: IrValueParameter): Int {
     return parameters.asSequence()
         .take(parameter.indexInParameters)

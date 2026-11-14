@@ -48,7 +48,10 @@ object ComposeSourceScanner {
         val packageName = lines.firstNotNullOfOrNull(::parsePackageName).orEmpty()
         val ownerClassName = buildOwnerClassName(packageName, file.nameWithoutExtension)
         val relativePath = projectPath.relativize(file.toPath()).toString().replace(File.separatorChar, '/')
-        val functionRegex = Regex("""^\s*(?:(?:@[A-Za-z0-9_.]+(?:\([^)]*\))?)\s*)*(?:(?:private|internal|public|protected|override|inline|suspend|operator)\s+)*fun\s+([A-Za-z0-9_]+)\s*\(""")
+        // 兼容带接收者的 Composable（如 private fun BoxScope.ChapterSideBar(...)）：fun 与函数名之间
+        // 可有 "ReceiverType." 前缀；不识别会导致整个函数体落在 composableRanges 之外，
+        // 其中的 Modifier 调用点（如侧栏 Text/clickable）全部漏扫，运行时命中却查不到索引
+        val functionRegex = Regex("""^\s*(?:(?:@[A-Za-z0-9_.]+(?:\([^)]*\))?)\s*)*(?:(?:private|internal|public|protected|override|inline|suspend|operator)\s+)*fun\s+(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)\s*\(""")
         val composableRanges = findComposableRanges(lines, functionRegex)
         val modifierCallRegex = Regex("""\b([A-Z][A-Za-z0-9_]*)\s*(?:\(|\{)""")
 

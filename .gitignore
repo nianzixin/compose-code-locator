@@ -11,3 +11,6 @@ work/
 *.keystore
 *.jks
 captures/
+
+# GitLab Deploy Token，publish-gitlab-registry.sh 读取，禁止提交
+.deployToken

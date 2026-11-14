@@ -65,7 +65,7 @@ class LocatorToolWindow(
     }
 
     /**
-     * Rescans the Studio index on disk; no IDE restart needed after clean/build
+     * 重新扫描磁盘上的 Studio 索引，clean/build 之后无需重启 AS
      */
     fun refreshSourceIndex(): String {
         sourceIndex.refresh()
