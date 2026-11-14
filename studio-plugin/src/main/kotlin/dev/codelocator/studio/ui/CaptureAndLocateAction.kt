@@ -41,7 +41,7 @@ class CaptureAndLocateAction(
     /**
      * 去掉展示上完全重复的候选：同一节点的语义层与布局层可能注册了相同 sourceId 且 bounds 一致，
      * 列表里会出现两行一模一样的条目（调用点条目还会被夹在中间）；按 sourceId + bounds 去重，
-     * sourceId 为空的节点（LayoutNode/WindowRoot 等）保留原样
+     * sourceId 为空的节点用固定占位符参与去重，因此同 bounds 的匿名节点也会被合并
      */
     private fun List<HitCandidate>.distinctForDisplay(): List<HitCandidate> {
         return distinctBy { candidate ->

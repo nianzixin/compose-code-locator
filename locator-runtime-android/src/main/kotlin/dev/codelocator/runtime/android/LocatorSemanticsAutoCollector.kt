@@ -554,7 +554,7 @@ private object LocatorLayoutTreeCollector {
         return readLongMember("getSourceId")
             ?: readLongMember("sourceId")
             ?: readLongField("sourceId")
-            ?: readNestedModifierSourceId()
+            ?: readThroughNestedModifier { readLocatorSourceId() }
     }
 
     /**
@@ -566,41 +566,29 @@ private object LocatorLayoutTreeCollector {
         return readLongMember("getBoundarySourceId")
             ?: readLongMember("boundarySourceId")
             ?: readLongField("boundarySourceId")
-            ?: readNestedModifierBoundarySourceId()
+            ?: readThroughNestedModifier { readLocatorBoundarySourceId() }
     }
 
     /**
-     * 沿 modifier 嵌套链继续找 boundarySourceId，与 readNestedModifierSourceId 对称
+     * 沿 modifier 嵌套链（getModifier() 方法或 modifier 字段）向内层走一步，
+     * 在下一个 modifier 元素上继续按 reader 读取目标字段；sourceId 与 boundarySourceId
+     * 两条读取链共用此行走逻辑，避免逐字段各复制一份
+     *
+     * @param reader 在下一步元素上的读取函数（递归进入对应的读取链）
      */
-    private fun Any.readNestedModifierBoundarySourceId(): Long? {
+    private fun Any.readThroughNestedModifier(reader: Any.() -> Long?): Long? {
         return runCatching {
             javaClass.methods.firstOrNull { it.name == "getModifier" && it.parameterCount == 0 }
                 ?.invoke(this)
                 ?.takeIf { it !== this }
-                ?.readLocatorBoundarySourceId()
+                ?.reader()
         }.getOrNull()
             ?: runCatching {
                 javaClass.declaredFields.firstOrNull { it.name == "modifier" }
                     ?.also { it.isAccessible = true }
                     ?.get(this)
                     ?.takeIf { it !== this }
-                    ?.readLocatorBoundarySourceId()
-            }.getOrNull()
-    }
-
-    private fun Any.readNestedModifierSourceId(): Long? {
-        return runCatching {
-            javaClass.methods.firstOrNull { it.name == "getModifier" && it.parameterCount == 0 }
-                ?.invoke(this)
-                ?.takeIf { it !== this }
-                ?.readLocatorSourceId()
-        }.getOrNull()
-            ?: runCatching {
-                javaClass.declaredFields.firstOrNull { it.name == "modifier" }
-                    ?.also { it.isAccessible = true }
-                    ?.get(this)
-                    ?.takeIf { it !== this }
-                    ?.readLocatorSourceId()
+                    ?.reader()
             }.getOrNull()
     }
 

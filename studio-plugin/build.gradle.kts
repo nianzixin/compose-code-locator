@@ -152,57 +152,50 @@ tasks.register<Zip>("buildStudioPluginZip") {
 val compilerPluginJarName = "locator-compiler-plugin-${rootProject.version}.jar"
 val compilerPluginBuildLibs = rootProject.file("locator-compiler-plugin/build/libs")
 
-val buildCompilerPluginVariantKotlin22 by tasks.registering(Exec::class) {
-    group = "build"
-    description = "Builds the Kotlin 2.2 compiler plugin variant jar."
-    workingDir = rootDir
-    val wrapperScript = rootProject.file("gradlew.bat").takeIf { it.isFile } ?: rootProject.file("gradlew")
-    val wrapperCommand = if (System.getProperty("os.name").contains("Windows")) {
-        listOf("cmd", "/c", wrapperScript.absolutePath)
-    } else {
-        listOf(wrapperScript.absolutePath)
+/**
+ * 注册一个 Kotlin 编译器变体的构建+重命名任务对：
+ * Exec 起独立 Gradle 进程以 -PkotlinCompilerApi=<apiVersion> 构建薄壳变体，
+ * Copy 把同名产物重命名为 locator-compiler-plugin-kotlin-<apiVersion>.jar；
+ * 两次构建输出同名 jar 会互踩，调用方必须保证变体之间串行（mustRunAfter + dependsOn）
+ *
+ * @param apiVersion 编译器插件面向的 Kotlin API 版本（如 "2.2"、"2.4"）
+ * @return Exec 构建任务与 Copy 重命名任务的 Provider 对
+ */
+fun registerCompilerPluginVariant(
+    apiVersion: String,
+): Pair<TaskProvider<Exec>, TaskProvider<Copy>> {
+    val buildTask = tasks.register<Exec>("buildCompilerPluginVariantKotlin${apiVersion.replace(".", "")}") {
+        group = "build"
+        description = "Builds the Kotlin $apiVersion compiler plugin variant jar."
+        workingDir = rootDir
+        val wrapperScript = rootProject.file("gradlew.bat").takeIf { it.isFile } ?: rootProject.file("gradlew")
+        val wrapperCommand = if (System.getProperty("os.name").contains("Windows")) {
+            listOf("cmd", "/c", wrapperScript.absolutePath)
+        } else {
+            listOf(wrapperScript.absolutePath)
+        }
+        val javaBin = System.getProperty("java.home") + File.separator + "bin"
+        environment("PATH", javaBin + File.pathSeparator + System.getenv("PATH"))
+        commandLine(*wrapperCommand.plus(":locator-compiler-plugin:jar").plus("-PkotlinCompilerApi=$apiVersion").toTypedArray())
     }
-    val javaBin = System.getProperty("java.home") + File.separator + "bin"
-    environment("PATH", javaBin + File.pathSeparator + System.getenv("PATH"))
-    commandLine(*wrapperCommand.plus(":locator-compiler-plugin:jar").plus("-PkotlinCompilerApi=2.2").toTypedArray())
+    val renameTask = tasks.register<Copy>("renameCompilerPluginVariantKotlin${apiVersion.replace(".", "")}") {
+        dependsOn(buildTask)
+        from(compilerPluginBuildLibs) {
+            include(compilerPluginJarName)
+            exclude("*-sources.jar", "*-javadoc.jar")
+        }
+        rename { "locator-compiler-plugin-kotlin-$apiVersion.jar" }
+        into(compilerPluginBuildLibs)
+    }
+    return buildTask to renameTask
 }
 
-val renameCompilerPluginVariantKotlin22 by tasks.registering(Copy::class) {
-    dependsOn(buildCompilerPluginVariantKotlin22)
-    from(compilerPluginBuildLibs) {
-        include(compilerPluginJarName)
-        exclude("*-sources.jar", "*-javadoc.jar")
-    }
-    rename { "locator-compiler-plugin-kotlin-2.2.jar" }
-    into(compilerPluginBuildLibs)
-}
-
-val buildCompilerPluginVariantKotlin24 by tasks.registering(Exec::class) {
-    // 必须等 2.2 产物重命名完再跑：两次构建输出同名 jar，后一次会覆盖前一次
+// 2.4 必须等 2.2 产物重命名完再跑：两次构建输出同名 jar，后一次会覆盖前一次
+val (buildCompilerPluginVariantKotlin22, renameCompilerPluginVariantKotlin22) = registerCompilerPluginVariant("2.2")
+val (buildCompilerPluginVariantKotlin24, renameCompilerPluginVariantKotlin24) = registerCompilerPluginVariant("2.4")
+buildCompilerPluginVariantKotlin24.configure {
     dependsOn(renameCompilerPluginVariantKotlin22)
     mustRunAfter(renameCompilerPluginVariantKotlin22)
-    group = "build"
-    description = "Builds the Kotlin 2.4 compiler plugin variant jar."
-    workingDir = rootDir
-    val wrapperScript = rootProject.file("gradlew.bat").takeIf { it.isFile } ?: rootProject.file("gradlew")
-    val wrapperCommand = if (System.getProperty("os.name").contains("Windows")) {
-        listOf("cmd", "/c", wrapperScript.absolutePath)
-    } else {
-        listOf(wrapperScript.absolutePath)
-    }
-    val javaBin = System.getProperty("java.home") + File.separator + "bin"
-    environment("PATH", javaBin + File.pathSeparator + System.getenv("PATH"))
-    commandLine(*wrapperCommand.plus(":locator-compiler-plugin:jar").plus("-PkotlinCompilerApi=2.4").toTypedArray())
-}
-
-val renameCompilerPluginVariantKotlin24 by tasks.registering(Copy::class) {
-    dependsOn(buildCompilerPluginVariantKotlin24)
-    from(compilerPluginBuildLibs) {
-        include(compilerPluginJarName)
-        exclude("*-sources.jar", "*-javadoc.jar")
-    }
-    rename { "locator-compiler-plugin-kotlin-2.4.jar" }
-    into(compilerPluginBuildLibs)
 }
 
 // 收集 Gradle 侧构建期三产物到统一目录，供 buildStudioPluginZip 打进 zip 的 lib/
