@@ -131,7 +131,7 @@ bash publish-maven-branch.sh origin
 ### 对外同步流程
 
 ```bash
-bash sync-upstream-pr.sh   # merge main → 剔除内网文件 → 推 fork 的 upstream-pr 分支
+bash sync-upstream-pr.sh   # merge main → 剔除内网文件（含脚本自身，只剔索引不删磁盘文件）→ 推 fork 的 upstream-pr 分支
 ```
 
 之后在 GitHub 上从 `junjie-z666/compose-code-locator` 的 `upstream-pr` 分支向 `nianzixin/compose-code-locator` 的 main 建 PR（中文描述）。
