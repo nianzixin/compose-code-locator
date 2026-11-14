@@ -39,7 +39,7 @@ concurrency:
 jobs:
   verify:
     name: Verify public publishing readiness
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 45
 
     steps:
@@ -87,7 +87,7 @@ jobs:
   maven-central:
     name: Publish Maven Central
     needs: verify
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 45
     if: inputs.publish_maven_central == true || inputs.publish_maven_central == 'true'
 
@@ -134,7 +134,7 @@ jobs:
   gradle-plugin-portal:
     name: Publish Gradle Plugin Portal
     needs: verify
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 30
     if: inputs.publish_gradle_plugin_portal == true || inputs.publish_gradle_plugin_portal == 'true'
 
@@ -160,7 +160,7 @@ jobs:
   studio-release:
     name: Release Studio Plugin (tag)
     needs: verify
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 45
     # 仅 studio-v* tag 触发（手动 dispatch 时无 tag 引用，自动跳过）
     if: startsWith(github.ref, 'refs/tags/studio-v')
