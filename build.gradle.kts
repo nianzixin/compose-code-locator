@@ -2197,6 +2197,15 @@ tasks.register("verifyComposeLocatorReleaseBoundary") {
     }
 }
 
+// 第二次 Gradle 调用：compiler plugin 的 Kotlin 2.2/2.4 是同一模块靠 -PkotlinCompilerApi 切换的薄壳变体，
+// 单次调用只能编译发布一个变体，因此单独再调用一次发布 kotlin-2.4 产物到同一 staging Maven 目录
+tasks.register<GradleBuild>("publishCompilerPluginKotlin24") {
+    group = "distribution"
+    description = "Publishes the Kotlin 2.4 compiler plugin variant to the release staging Maven repository."
+    tasks = listOf(":locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository")
+    startParameter.projectProperties = mapOf("kotlinCompilerApi" to "2.4")
+}
+
 tasks.register("stageComposeLocatorRelease") {
     group = "distribution"
     description = "Stages Maven artifacts, the Android Studio plugin ZIP, and a release manifest for team rollout."
@@ -2206,6 +2215,7 @@ tasks.register("stageComposeLocatorRelease") {
         ":locator-compiler-plugin:publishAllPublicationsToComposeLocatorStagingRepository",
         gradle.includedBuild("locator-gradle-plugin").task(":publishAllPublicationsToComposeLocatorStagingRepository"),
         ":studio-plugin:buildStudioPluginZip",
+        "publishCompilerPluginKotlin24",
     )
 
     val releaseDir = layout.buildDirectory.dir("composeLocator/release")
