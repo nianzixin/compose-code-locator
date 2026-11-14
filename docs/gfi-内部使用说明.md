@@ -10,7 +10,7 @@
 用浏览器打开下面的地址下载 zip（项目为 Public，支持匿名下载）：
 
 ```
-http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-studio-plugin/0.1.6/compose-code-locator-0.1.6.zip
+http://192.168.5.254/api/v4/projects/513/packages/generic/compose-code-locator-studio-plugin/0.1.6.1/compose-code-locator-0.1.6.1.zip
 ```
 
 在 Android Studio 里通过 Settings → Plugins → ⚙ → **Install Plugin from Disk** 安装，安装后重启 AS。
