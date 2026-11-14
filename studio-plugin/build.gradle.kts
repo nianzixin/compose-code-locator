@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm")
 }
 
-version = "0.1.6.3"
+version = "0.1.7"
 
 kotlin {
     jvmToolchain(17)
@@ -180,6 +180,8 @@ fun registerCompilerPluginVariant(
     }
     val renameTask = tasks.register<Copy>("renameCompilerPluginVariantKotlin${apiVersion.replace(".", "")}") {
         dependsOn(buildTask)
+        // rename 读的 build/libs 是 :locator-compiler-plugin:jar 的输出目录，须显式声明依赖避免隐式依赖校验报错
+        dependsOn(project(":locator-compiler-plugin").tasks.named("jar"))
         from(compilerPluginBuildLibs) {
             include(compilerPluginJarName)
             exclude("*-sources.jar", "*-javadoc.jar")
